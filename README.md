@@ -21,11 +21,7 @@ Got any feedback or questions? Join our [Discord](https://discord.gg/hgVf9R6SBm)
 
 ## Vercel preview deployments with ephemeral Instant apps
 
-Use a dedicated build command so preview deployments can spin up a temporary Instant app and push schema/perms into it:
-
-```bash
-pnpm run build:vercel
-```
+Vercel must run the repo build script so preview deployments can spin up a temporary Instant app and push schema/perms into it. This repo now sets `build` to `node scripts/vercel-build.mjs`, and `vercel.json` pins the build command to `pnpm run build`.
 
 ### Vercel env vars
 
@@ -36,7 +32,7 @@ How preview builds work:
 
 1. If `VERCEL_ENV=preview` and Instant app credentials are not already set, `scripts/vercel-build.mjs` runs `instant-cli init-without-files --temp` to create an ephemeral app.
 2. It pushes the local `instant.schema.ts` + `instant.perms.ts` with `instant-cli push all`.
-3. It injects generated credentials into the build process, writes them to `src/lib/instant-preview-*.json` fallback files, and then runs `next build`.
-4. Server/runtime code reads from environment variables first, then falls back to the generated preview files so Vercel preview functions use the same ephemeral app.
+3. It injects generated credentials into the build environment and then runs `next build`.
+4. Next.js compiles the deployment with those env values, so both browser and server code in that preview deployment use the same ephemeral app credentials.
 
 Temporary apps created with `--temp` expire automatically (>24h), so each preview deployment gets isolated data.

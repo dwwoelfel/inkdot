@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { getUnverifiedUserFromInstantCookie } from '@instantdb/react/nextjs';
 import { InstantProvider } from './InstantProvider';
 import './globals.css';
-import { getInstantAppId } from '@/lib/instant-env-public';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,7 +37,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUnverifiedUserFromInstantCookie(getInstantAppId());
+  const user = await getUnverifiedUserFromInstantCookie(
+    process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
+  );
 
   return (
     <html lang="en">

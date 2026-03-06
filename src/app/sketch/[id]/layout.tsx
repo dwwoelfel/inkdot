@@ -1,14 +1,10 @@
 import { init } from '@instantdb/admin';
 import schema from '@/instant.schema';
 import type { Metadata } from 'next';
-import {
-  getInstantAdminToken,
-  getInstantServerAppId,
-} from '@/lib/instant-env-server';
 
 const adminDb = init({
-  appId: getInstantServerAppId(),
-  adminToken: getInstantAdminToken(),
+  appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
+  adminToken: process.env.INSTANT_APP_ADMIN_TOKEN!,
   schema,
 });
 

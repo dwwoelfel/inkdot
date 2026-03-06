@@ -1,6 +1,5 @@
 import { createInstantRouteHandler } from '@instantdb/react/nextjs';
-import { getInstantServerAppId } from '@/lib/instant-env-server';
 
 export const { POST } = createInstantRouteHandler({
-  appId: getInstantServerAppId(),
+  appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
 });

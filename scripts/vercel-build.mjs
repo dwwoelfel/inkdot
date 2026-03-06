@@ -86,19 +86,6 @@ function createPreviewInstantApp() {
   process.env.NEXT_PUBLIC_INSTANT_APP_ID = creds.appId;
   process.env.INSTANT_APP_ADMIN_TOKEN = creds.adminToken;
 
-  writeFileSync(
-    join(process.cwd(), 'src/lib/instant-preview-public.json'),
-    `${JSON.stringify({ NEXT_PUBLIC_INSTANT_APP_ID: creds.appId }, null, 2)}
-`,
-    'utf8',
-  );
-  writeFileSync(
-    join(process.cwd(), 'src/lib/instant-preview-server.json'),
-    `${JSON.stringify({ INSTANT_APP_ADMIN_TOKEN: creds.adminToken }, null, 2)}
-`,
-    'utf8',
-  );
-
   console.log(
     `Created temporary Instant app for preview deployment: ${creds.appId}`,
   );
