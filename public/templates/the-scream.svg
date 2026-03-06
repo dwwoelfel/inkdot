@@ -79,13 +79,15 @@
 
   <!-- ============= MAIN FIGURE ============= -->
 
-  <!-- HEAD - large elongated oval -->
+  <!-- HEAD - elongated with pinched cheeks (hands squeezing) -->
   <path d="M400 168
            C370 168 348 205 346 250
-           C344 295 350 335 362 355
+           C345 268 350 292 354 312
+           C358 332 360 352 362 358
            C374 368 386 374 400 374
-           C414 374 426 368 438 355
-           C450 335 456 295 454 250
+           C414 374 426 368 438 358
+           C440 352 442 332 446 312
+           C450 292 455 268 454 250
            C452 205 430 168 400 168 Z"
         fill="#888" fill-opacity="0.1" stroke-width="2.8"/>
 
@@ -98,7 +100,7 @@
   <!-- Body fill -->
   <path d="M355 370 C342 385 315 435 302 490 C292 535 286 575 282 600
            L518 600 C514 575 508 535 498 490 C485 435 458 385 445 370 Z"
-        fill="#888" fill-opacity="0.15" stroke="none"/>
+        fill="#888" fill-opacity="0.2" stroke="none"/>
   <!-- Body wavy lines -->
   <g stroke-width="2" opacity="0.2">
     <path d="M350 410 Q400 402 450 410"/>
@@ -109,34 +111,47 @@
   </g>
 
   <!-- LEFT ARM: shoulder → elbow (far out left) → hand on CHEEK -->
-  <path d="M355 370 C310 345 260 310 255 275 C250 240 310 255 346 268"
+  <path d="M355 370 C310 345 260 310 255 280 C250 248 305 270 350 285"
         stroke-width="6"/>
-  <!-- Fingers pressing down along left cheek -->
-  <path d="M346 268 C345 280 344 292 344 304" stroke-width="3.5" opacity="0.5"/>
-  <path d="M340 272 C339 284 338 296 338 308" stroke-width="3" opacity="0.45"/>
-  <path d="M334 276 C334 288 333 300 333 312" stroke-width="2.5" opacity="0.4"/>
+  <!-- Left palm emphasis -->
+  <path d="M318 274 C332 280 342 283 350 285" stroke-width="12" opacity="0.1"/>
+  <!-- Fingers on left cheek -->
+  <path d="M348 272 C347 286 347 300 348 312" stroke-width="2.5" opacity="0.4"/>
+  <path d="M343 276 C342 290 342 304 343 314" stroke-width="2" opacity="0.35"/>
 
   <!-- RIGHT ARM: shoulder → elbow (far out right) → hand on CHEEK -->
-  <path d="M445 370 C490 345 540 310 545 275 C550 240 490 255 454 268"
+  <path d="M445 370 C490 345 540 310 545 280 C550 248 495 270 450 285"
         stroke-width="6"/>
-  <!-- Fingers pressing down along right cheek -->
-  <path d="M454 268 C455 280 456 292 456 304" stroke-width="3.5" opacity="0.5"/>
-  <path d="M460 272 C461 284 462 296 462 308" stroke-width="3" opacity="0.45"/>
-  <path d="M466 276 C466 288 467 300 467 312" stroke-width="2.5" opacity="0.4"/>
+  <!-- Right palm emphasis -->
+  <path d="M482 274 C468 280 458 283 450 285" stroke-width="12" opacity="0.1"/>
+  <!-- Fingers on right cheek -->
+  <path d="M452 272 C453 286 453 300 452 312" stroke-width="2.5" opacity="0.4"/>
+  <path d="M457 276 C458 290 458 304 457 314" stroke-width="2" opacity="0.35"/>
 
   <!-- FACE FEATURES -->
+  <!-- Worried eyebrows -->
+  <path d="M374 236 Q384 228 394 236" stroke-width="2.5" opacity="0.45"/>
+  <path d="M406 236 Q416 228 426 236" stroke-width="2.5" opacity="0.45"/>
   <!-- Eyes -->
-  <ellipse cx="384" cy="250" rx="8" ry="10" fill="#888" fill-opacity="0.3" stroke-width="1.8"/>
-  <ellipse cx="416" cy="250" rx="8" ry="10" fill="#888" fill-opacity="0.3" stroke-width="1.8"/>
-  <circle cx="384" cy="251" r="4" fill="#888" fill-opacity="0.5" stroke="none"/>
-  <circle cx="416" cy="251" r="4" fill="#888" fill-opacity="0.5" stroke="none"/>
+  <ellipse cx="384" cy="250" rx="9" ry="11" fill="#888" fill-opacity="0.3" stroke-width="2"/>
+  <ellipse cx="416" cy="250" rx="9" ry="11" fill="#888" fill-opacity="0.3" stroke-width="2"/>
+  <circle cx="384" cy="251" r="4.5" fill="#888" fill-opacity="0.55" stroke="none"/>
+  <circle cx="416" cy="251" r="4.5" fill="#888" fill-opacity="0.55" stroke="none"/>
+
+  <!-- Face contour lines (distortion) -->
+  <g stroke-width="1.5" opacity="0.12">
+    <path d="M352 268 Q400 263 448 268"/>
+    <path d="M354 296 Q400 291 446 296"/>
+  </g>
 
   <!-- Nostrils -->
-  <circle cx="396" cy="300" r="3" fill="#888" fill-opacity="0.25"/>
-  <circle cx="404" cy="300" r="3" fill="#888" fill-opacity="0.25"/>
+  <circle cx="396" cy="300" r="3" fill="#888" fill-opacity="0.3"/>
+  <circle cx="404" cy="300" r="3" fill="#888" fill-opacity="0.3"/>
 
   <!-- MOUTH - large screaming oval -->
-  <ellipse cx="400" cy="336" rx="18" ry="32" fill="#888" fill-opacity="0.25" stroke-width="2.8"/>
+  <ellipse cx="400" cy="338" rx="20" ry="34" fill="#888" fill-opacity="0.28" stroke-width="3"/>
+  <!-- Mouth interior darkness -->
+  <ellipse cx="400" cy="338" rx="12" ry="24" fill="#888" fill-opacity="0.15" stroke="none"/>
 
   <!-- Landscape curves flowing to dark hill -->
   <g stroke-width="2.5" opacity="0.2">
