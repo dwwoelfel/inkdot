@@ -14,10 +14,10 @@ importers:
     dependencies:
       '@instantdb/admin':
         specifier: latest
-        version: 0.22.150
+        version: 0.22.153
       '@instantdb/react':
         specifier: latest
-        version: 0.22.150(react@19.2.4)
+        version: 0.22.153(react@19.2.4)
       next:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -29,11 +29,11 @@ importers:
         version: 19.2.4(react@19.2.4)
     devDependencies:
       '@tailwindcss/postcss':
-        specifier: ^4
+        specifier: ^4.2.1
         version: 4.2.1
       '@types/node':
-        specifier: ^20
-        version: 20.19.35
+        specifier: ^20.19.37
+        version: 20.19.37
       '@types/react':
         specifier: 19.2.14
         version: 19.2.14
@@ -41,7 +41,7 @@ importers:
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.14)
       eslint:
-        specifier: ^9.0.0
+        specifier: ^9.39.3
         version: 9.39.3(jiti@2.6.1)
       eslint-config-next:
         specifier: 16.1.6
@@ -53,7 +53,7 @@ importers:
         specifier: ^0.7.2
         version: 0.7.2(prettier@3.8.1)
       tailwindcss:
-        specifier: ^4
+        specifier: ^4.2.1
         version: 4.2.1
       typescript:
         specifier: ^5.9.3
@@ -332,24 +332,24 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@instantdb/admin@0.22.150':
-    resolution: {integrity: sha512-8vdDEotXESatV75ykC0uin6SkcwGP+2lFtonm3TnbVEpX+puNF8dIR24hXmMkyMSyCxQzujzKARku9RakrrR+g==}
+  '@instantdb/admin@0.22.153':
+    resolution: {integrity: sha512-2jp4vRAPZj5YdVxXod2kHkC0GMQgIAirHZkrEB68RvJTkCcCQxAQB2sviXVWn5AZ2euMMNeRc+MaLDpGBPZ2rw==}
 
-  '@instantdb/core@0.22.150':
-    resolution: {integrity: sha512-4Q5qKq5EPfEdwuH7pxmK3UF3Gd2RyoxAgA+fAgChljFIP9KjNcblllC+p/hMNhWAq4BnoAOaq64FN2jR7/8OoQ==}
+  '@instantdb/core@0.22.153':
+    resolution: {integrity: sha512-FgPlvFcebZqGlfow0HdyySW+gbc2mhdBH5MnEy+P0U85V98iwb3rzMytFDaDhS3xsThMoivHf9tbJHn/uAY81A==}
 
-  '@instantdb/react-common@0.22.150':
-    resolution: {integrity: sha512-z6fL8Qlz+U7pbZM4na/90vHOzvxm5O+Fwt07e6UZHgFJ6Wlms2RNm4MTpA9B2BEhxFlLovVgrM94jGIOJ/EPfw==}
+  '@instantdb/react-common@0.22.153':
+    resolution: {integrity: sha512-Umd2664naYLwJ3vHFUP89lvmVUjzfRGg+6rfOKBUAZZwB1XUUI+2ocuuKSDcFUoix2+i2BiKxESyjY7D7Xe9XA==}
     peerDependencies:
       react: '>=16'
 
-  '@instantdb/react@0.22.150':
-    resolution: {integrity: sha512-baoZ8gOxokjIII6TYDPId/QwiXuXcva0RgNAyNlhQfzISfs9Y9CyMDidcxXMTQvmEImKpJZw2iLEAALnBgWDfA==}
+  '@instantdb/react@0.22.153':
+    resolution: {integrity: sha512-F1O0ja3YiMoNd6eVERGrQK7McTFzWXe4a+txsTicX0u4tNv8m0YJDpZWJc9J/R8hXLTSqdBuE5PtHJlwiylYhg==}
     peerDependencies:
       react: '>=16'
 
-  '@instantdb/version@0.22.150':
-    resolution: {integrity: sha512-iWmkAdXISvZnGth5fc3iHCi/KB97lJhBbkf0ESzE+AWjy1OUYal2dVJGqqUL5/2Lek5imcCqP6lHgfpfqVo2eA==}
+  '@instantdb/version@0.22.153':
+    resolution: {integrity: sha512-NGfBxYHc0JYsdk675BvUAiRDBOw3crRVDvcG+sZASln64jmKy4ig747mMKNAGl56X3M2mgLAz9CvyojVRSzMjQ==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -546,8 +546,8 @@ packages:
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
 
-  '@types/node@20.19.35':
-    resolution: {integrity: sha512-Uarfe6J91b9HAUXxjvSOdiO2UPOKLm07Q1oh0JHxoZ1y8HoqxDAu3gVrsrOHeiio0kSsoVBt4wFrKOm0dKxVPQ==}
+  '@types/node@20.19.37':
+    resolution: {integrity: sha512-8kzdPJ3FsNsVIurqBs7oodNnCEVbni9yUEkaHbgptDACOPW04jimGagZ51E6+lXUwJjgnBw+hyko/lkFWCldqw==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -2308,35 +2308,35 @@ snapshots:
   '@img/sharp-win32-x64@0.34.5':
     optional: true
 
-  '@instantdb/admin@0.22.150':
+  '@instantdb/admin@0.22.153':
     dependencies:
-      '@instantdb/core': 0.22.150
-      '@instantdb/version': 0.22.150
+      '@instantdb/core': 0.22.153
+      '@instantdb/version': 0.22.153
       cookie: 1.1.1
       eventsource: 4.1.0
       uuid: 11.1.0
 
-  '@instantdb/core@0.22.150':
+  '@instantdb/core@0.22.153':
     dependencies:
-      '@instantdb/version': 0.22.150
+      '@instantdb/version': 0.22.153
       mutative: 1.3.0
       uuid: 11.1.0
 
-  '@instantdb/react-common@0.22.150(react@19.2.4)':
+  '@instantdb/react-common@0.22.153(react@19.2.4)':
     dependencies:
-      '@instantdb/core': 0.22.150
-      '@instantdb/version': 0.22.150
+      '@instantdb/core': 0.22.153
+      '@instantdb/version': 0.22.153
       react: 19.2.4
 
-  '@instantdb/react@0.22.150(react@19.2.4)':
+  '@instantdb/react@0.22.153(react@19.2.4)':
     dependencies:
-      '@instantdb/core': 0.22.150
-      '@instantdb/react-common': 0.22.150(react@19.2.4)
-      '@instantdb/version': 0.22.150
+      '@instantdb/core': 0.22.153
+      '@instantdb/react-common': 0.22.153(react@19.2.4)
+      '@instantdb/version': 0.22.153
       eventsource: 4.1.0
       react: 19.2.4
 
-  '@instantdb/version@0.22.150': {}
+  '@instantdb/version@0.22.153': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -2494,7 +2494,7 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
-  '@types/node@20.19.35':
+  '@types/node@20.19.37':
     dependencies:
       undici-types: 6.21.0
 

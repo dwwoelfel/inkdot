@@ -200,7 +200,7 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
         isLive={isLineagePlaying ? false : effectiveLive}
         isAuthor={isLineagePlaying ? false : isAuthor}
         isAdmin={isLineagePlaying ? false : isAdmin}
-        canReport={false}
+        canReport={!!user && !isAuthor}
         savedTrimStart={isLineagePlaying ? null : (sketch.trimStart ?? null)}
         savedTrimEnd={isLineagePlaying ? null : (sketch.trimEnd ?? null)}
         remixOf={isLineagePlaying ? null : (sketch.remixOf ?? null)}
@@ -948,17 +948,7 @@ function ReplayCanvas({
               LIVE
             </span>
           )}
-          {canReport && (
-            <button
-              onClick={() => {
-                setPlaying(false);
-                setShowReport(true);
-              }}
-              className="text-xs text-gray-400 transition-colors hover:text-red-500 sm:text-sm"
-            >
-              Report
-            </button>
-          )}
+          {canReport && <OverflowMenu onReport={() => { setPlaying(false); setShowReport(true); }} />}
         </div>
       </div>
 
@@ -1545,6 +1535,50 @@ function RemixesSection({
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+function OverflowMenu({ onReport }: { onReport: () => void }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 sm:h-8 sm:w-8"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="8" cy="3" r="1.5" />
+          <circle cx="8" cy="8" r="1.5" />
+          <circle cx="8" cy="13" r="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+          <button
+            onClick={() => {
+              setOpen(false);
+              onReport();
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-red-500"
+          >
+            Report
+          </button>
+        </div>
+      )}
     </div>
   );
 }
