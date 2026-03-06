@@ -18,8 +18,9 @@ echo "$INIT_OUTPUT"
 # Parse JSON output to extract appId and adminToken
 eval "$(node -e "
   const out = JSON.parse(process.argv[1]);
-  console.log('APP_ID=' + out.appId);
-  console.log('ADMIN_TOKEN=' + out.adminToken);
+  if (out.error) { console.error('Init error: ' + JSON.stringify(out.error)); process.exit(1); }
+  console.log('APP_ID=' + out.app.appId);
+  console.log('ADMIN_TOKEN=' + out.app.adminToken);
 " "$INIT_OUTPUT")"
 
 if [ -z "${APP_ID:-}" ] || [ -z "${ADMIN_TOKEN:-}" ]; then
