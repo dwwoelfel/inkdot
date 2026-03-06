@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { getUnverifiedUserFromInstantCookie } from '@instantdb/react/nextjs';
 import { InstantProvider } from './InstantProvider';
 import './globals.css';
+import { getInstantAppId } from '@/lib/instant-env-public';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -16,8 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'InkDot',
-  description:
-    'Draw, stream, and replay tiny sketches. Powered by InstantDB.',
+  description: 'Draw, stream, and replay tiny sketches. Powered by InstantDB.',
   openGraph: {
     title: 'InkDot',
     description:
@@ -38,9 +38,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUnverifiedUserFromInstantCookie(
-    process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
-  );
+  const user = await getUnverifiedUserFromInstantCookie(getInstantAppId());
 
   return (
     <html lang="en">

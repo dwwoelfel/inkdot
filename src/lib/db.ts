@@ -1,8 +1,9 @@
 import { init } from '@instantdb/react/nextjs';
 import schema from '../instant.schema';
+import { getInstantAppId } from './instant-env-public';
 
 export const db = init({
-  appId: process.env.NEXT_PUBLIC_INSTANT_APP_ID!,
+  appId: getInstantAppId(),
   schema,
   useDateObjects: true,
   firstPartyPath: '/api/instant',

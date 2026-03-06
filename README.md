@@ -36,6 +36,7 @@ How preview builds work:
 
 1. If `VERCEL_ENV=preview` and Instant app credentials are not already set, `scripts/vercel-build.mjs` runs `instant-cli init-without-files --temp` to create an ephemeral app.
 2. It pushes the local `instant.schema.ts` + `instant.perms.ts` with `instant-cli push all`.
-3. It injects generated credentials into the build process and then runs `next build`.
+3. It injects generated credentials into the build process, writes them to `src/lib/instant-preview-*.json` fallback files, and then runs `next build`.
+4. Server/runtime code reads from environment variables first, then falls back to the generated preview files so Vercel preview functions use the same ephemeral app.
 
 Temporary apps created with `--temp` expire automatically (>24h), so each preview deployment gets isolated data.
