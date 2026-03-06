@@ -1,7 +1,10 @@
-# Welcome to your InstantDB NextJS app 👋
+# Live sketching app with replay, powered by InstantDB Streams
 
+[InkDot](https://inkdot.vercel.app)
+
+[InstantDB](https://www.instantdb.com)
 [InstantDB Docs](https://www.instantdb.com/docs)
-[NextJS Docs](https://nextjs.org/docs)
+[Stream Docs](https://www.instantdb.com/docs/streams)
 
 This is a NextJS project scaffolded with create-instant-app.
 
@@ -13,6 +16,5 @@ To push schema changes:
 
 To pull schema changes:
 `npx instant-cli pull`
-
 
 Got any feedback or questions? Join our [Discord](https://discord.gg/hgVf9R6SBm)
