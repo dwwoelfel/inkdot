@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 # Only run for Vercel preview deployments
 if [ "${VERCEL_ENV:-}" != "preview" ]; then
@@ -11,7 +11,8 @@ SHORT_SHA="${VERCEL_GIT_COMMIT_SHA:0:7}"
 APP_TITLE="inkdot-preview-${SHORT_SHA}"
 
 echo "Creating ephemeral Instant app: ${APP_TITLE}"
-INIT_OUTPUT=$(npx instant-cli init-without-files --title "$APP_TITLE" --temp)
+INIT_OUTPUT=$(INSTANT_CLI_VERBOSE=1 npx instant-cli init-without-files --title "$APP_TITLE" --temp 2>&1)
+echo "Raw output:"
 echo "$INIT_OUTPUT"
 
 # Parse JSON output to extract appId and adminToken
