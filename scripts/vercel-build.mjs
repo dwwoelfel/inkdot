@@ -20,13 +20,37 @@ function extractCredentials(output) {
     ].map((m) => [m[1], m[2].trim()]),
   );
 
+  let jsonAppId;
+  let jsonAdminToken;
+
+  try {
+    const parsed = JSON.parse(output);
+    jsonAppId = parsed?.app?.appId;
+    jsonAdminToken = parsed?.app?.adminToken;
+  } catch {
+    const start = output.indexOf('{');
+    const end = output.lastIndexOf('}');
+
+    if (start >= 0 && end > start) {
+      try {
+        const parsed = JSON.parse(output.slice(start, end + 1));
+        jsonAppId = parsed?.app?.appId;
+        jsonAdminToken = parsed?.app?.adminToken;
+      } catch {
+        // Fall back to other parse strategies below.
+      }
+    }
+  }
+
   const appIdMatch =
     envMatches.NEXT_PUBLIC_INSTANT_APP_ID ??
+    jsonAppId ??
     output.match(/app id[^a-z0-9]*([a-f0-9-]{36})/i)?.[1] ??
     output.match(/NEXT_PUBLIC_INSTANT_APP_ID[^a-z0-9]*([a-f0-9-]{36})/i)?.[1];
 
   const adminTokenMatch =
     envMatches.INSTANT_APP_ADMIN_TOKEN ??
+    jsonAdminToken ??
     output.match(
       /INSTANT_APP_ADMIN_TOKEN[^A-Za-z0-9_-]*([A-Za-z0-9_-]+)/,
     )?.[1] ??
@@ -34,7 +58,8 @@ function extractCredentials(output) {
 
   if (!appIdMatch || !adminTokenMatch) {
     throw new Error(
-      `Unable to parse Instant app credentials from CLI output:\n${output}`,
+      `Unable to parse Instant app credentials from CLI output:
+${output}`,
     );
   }
 
