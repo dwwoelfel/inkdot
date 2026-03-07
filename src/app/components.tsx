@@ -1914,6 +1914,8 @@ export function SketchCard({
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggered = useRef(false);
   const stream = sketch.stream;
   const thumbnailUrl = sketch.thumbnail?.url;
   const authorHandle = sketch.author?.handle;
@@ -1988,16 +1990,51 @@ export function SketchCard({
           );
         }}
         onMouseLeave={() => setIsHovering(false)}
+        onTouchStart={() => {
+          longPressTriggered.current = false;
+          longPressTimer.current = setTimeout(() => {
+            longPressTriggered.current = true;
+            setIsHovering(true);
+          }, 300);
+        }}
+        onTouchEnd={(e) => {
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+          // If long-press triggered replay, prevent navigation and let it play
+          if (longPressTriggered.current) {
+            e.preventDefault();
+            longPressTriggered.current = false;
+          }
+        }}
+        onTouchCancel={() => {
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+        }}
+        onTouchMove={() => {
+          // Cancel long-press if finger moves (scrolling)
+          if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+          }
+        }}
       >
         {stream && (isLive || (everLive && !thumbPreloaded)) ? (
           <LiveThumbnail streamId={stream.id} duration={sketch.duration} showCursor={showCursor ?? true} />
         ) : (
-          <div className="relative aspect-[4/3] w-full">
+          <div
+            className="relative aspect-[4/3] w-full select-none"
+            onContextMenu={(e) => e.preventDefault()}
+          >
             {thumbnailUrl ? (
               <img
                 src={thumbnailUrl}
                 alt="Sketch thumbnail"
                 className="aspect-[4/3] w-full object-cover"
+                draggable={false}
               />
             ) : (
               <div
