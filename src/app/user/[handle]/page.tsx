@@ -11,6 +11,13 @@ function SignedInUserGallery({ handle }: { handle: string }) {
 }
 
 function UserGalleryContent({ handle, userId }: { handle: string; userId?: string }) {
+  const { data: settingsData } = db.useQuery(
+    userId
+      ? { userSettings: { $: { where: { 'owner.id': userId } } } }
+      : null,
+  );
+  const playbackSpeed = settingsData?.userSettings?.[0]?.playbackSpeed ?? 2;
+
   const { data } = db.useSuspenseQuery({
     sketches: {
       stream: {},
@@ -54,7 +61,7 @@ function UserGalleryContent({ handle, userId }: { handle: string; userId?: strin
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             {sketches.map((sketch) => (
-              <SketchCard key={sketch.id} sketch={sketch} />
+              <SketchCard key={sketch.id} sketch={sketch} playbackSpeed={playbackSpeed} />
             ))}
           </div>
         )}

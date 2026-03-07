@@ -43,6 +43,13 @@ function GalleryContent({ userId, isAdmin }: { userId?: string; isAdmin?: boolea
     before?: Cursor;
   }>({ first: PAGE_SIZE });
 
+  const { data: settingsData } = db.useQuery(
+    userId
+      ? { userSettings: { $: { where: { 'owner.id': userId } } } }
+      : null,
+  );
+  const playbackSpeed = settingsData?.userSettings?.[0]?.playbackSpeed ?? 2;
+
   const { data, pageInfo } = db.useSuspenseQuery({
     sketches: {
       stream: {},
@@ -99,6 +106,7 @@ function GalleryContent({ userId, isAdmin }: { userId?: string; isAdmin?: boolea
                   key={sketch.id}
                   sketch={sketch}
                   isAdmin={!!isAdmin}
+                  playbackSpeed={playbackSpeed}
                 />
               ))}
             </div>

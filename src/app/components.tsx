@@ -794,9 +794,25 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
 
 // -- Live Thumbnail --
 
-export function LiveThumbnail({ streamId }: { streamId: string }) {
+export function LiveThumbnail({
+  streamId,
+  duration,
+}: {
+  streamId: string;
+  duration?: number | null;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cancelledRef = useRef(false);
+  const progressRef = useRef(0);
+  const cursorRef = useRef<{
+    x: number;
+    y: number;
+    tool?: string;
+    color?: string;
+    lastDrawTime?: number;
+    pressed?: boolean;
+    pressTime?: number;
+  } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -861,6 +877,45 @@ export function LiveThumbnail({ streamId }: { streamId: string }) {
                   1,
                 );
               }
+
+              // Update cursor
+              if (evt.type === 'click') {
+                if (cursorRef.current) {
+                  cursorRef.current = {
+                    ...cursorRef.current,
+                    pressed: true,
+                    pressTime: performance.now(),
+                  };
+                }
+              } else if (result.cursorPosition) {
+                cursorRef.current = {
+                  x: result.cursorPosition.x,
+                  y: result.cursorPosition.y,
+                  tool: incState.tool || undefined,
+                  color: incState.color || undefined,
+                  lastDrawTime: result.isDrawEvent
+                    ? performance.now()
+                    : cursorRef.current?.lastDrawTime,
+                };
+              } else if (result.stateChanged) {
+                cursorRef.current = {
+                  x: cursorRef.current?.x ?? 0,
+                  y: cursorRef.current?.y ?? 0,
+                  tool: incState.tool || undefined,
+                  color: incState.color || undefined,
+                  lastDrawTime: cursorRef.current?.lastDrawTime,
+                };
+              }
+
+              // Update progress
+              if (duration && allEvents.length > 1) {
+                const first = allEvents[0].t;
+                const totalMs = duration * 1000;
+                progressRef.current = Math.min(
+                  1,
+                  (evt.t - first) / totalMs,
+                );
+              }
             } catch {}
           }
         }
@@ -873,15 +928,276 @@ export function LiveThumbnail({ streamId }: { streamId: string }) {
       cancelledRef.current = true;
       reader.cancel().catch(() => {});
     };
-  }, [streamId]);
+  }, [streamId, duration]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={CANVAS_W}
-      height={CANVAS_H}
-      className="aspect-[4/3] w-full"
-    />
+    <div className="relative aspect-[4/3] w-full">
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W}
+        height={CANVAS_H}
+        className="aspect-[4/3] w-full"
+      />
+      <CursorOverlay cursorRef={cursorRef} />
+      <ThumbnailProgressBar progressRef={progressRef} />
+    </div>
+  );
+}
+
+// -- Thumbnail Progress Bar --
+
+function ThumbnailProgressBar({
+  progressRef,
+}: {
+  progressRef: React.RefObject<number>;
+}) {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let running = true;
+    const update = () => {
+      if (!running) return;
+      const bar = barRef.current;
+      if (bar) {
+        bar.style.transform = `scaleX(${progressRef.current ?? 0})`;
+      }
+      requestAnimationFrame(update);
+    };
+    requestAnimationFrame(update);
+    return () => {
+      running = false;
+    };
+  }, [progressRef]);
+
+  return (
+    <div className="absolute right-0 bottom-0 left-0 h-1 bg-black/10">
+      <div
+        ref={barRef}
+        className="h-full origin-left bg-slate-700"
+        style={{ transform: 'scaleX(0)' }}
+      />
+    </div>
+  );
+}
+
+// -- Replay Thumbnail (hover autoplay) --
+
+export function ReplayThumbnail({
+  streamId,
+  trimStart,
+  trimEnd,
+  playbackSpeed,
+}: {
+  streamId: string;
+  trimStart: number;
+  trimEnd: number | null;
+  playbackSpeed: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const progressRef = useRef(0);
+  const cursorRef = useRef<{
+    x: number;
+    y: number;
+    tool?: string;
+    color?: string;
+    lastDrawTime?: number;
+    pressed?: boolean;
+    pressTime?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = DEFAULT_BG;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    let cancelled = false;
+    let animFrame = 0;
+    const allEvents: StrokeEvent[] = [];
+
+    const readStream = db.streams.createReadStream({ streamId });
+    const reader = readStream.getReader();
+
+    // Read all events first, then start replay
+    let buffer = '';
+    (async () => {
+      try {
+        while (!cancelled) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              allEvents.push(JSON.parse(line));
+            } catch {}
+          }
+        }
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) throw e;
+      }
+
+      if (cancelled || allEvents.length === 0) return;
+
+      // Find trim boundaries by index for efficient slicing
+      const ts = trimStart ?? 0;
+      const te = trimEnd ?? allEvents[allEvents.length - 1].t;
+
+      let trimStartIdx = 0;
+      let trimEndIdx = allEvents.length;
+      for (let i = 0; i < allEvents.length; i++) {
+        if (allEvents[i].t < ts) trimStartIdx = i + 1;
+        if (allEvents[i].t > te) {
+          trimEndIdx = i;
+          break;
+        }
+      }
+
+      if (trimStartIdx >= trimEndIdx) return;
+
+      // Render initial state at trim start
+      const initResult = renderEventsToCanvas(
+        ctx,
+        allEvents.slice(0, trimStartIdx),
+      );
+
+      const replayState: IncrementalState = {
+        tool: initResult.tool,
+        color: initResult.color,
+        size: initResult.size,
+        shapeStart: null,
+      };
+      let eventIdx = trimStartIdx;
+      let replayStart = performance.now();
+
+      const redrawUpTo = (time: number) => {
+        const result = renderEventsToCanvas(ctx, allEvents, {
+          upToTime: time,
+        });
+        replayState.tool = result.tool;
+        replayState.color = result.color;
+        replayState.size = result.size;
+        replayState.shapeStart = null;
+      };
+
+      const frame = () => {
+        if (cancelled) return;
+
+        const elapsed =
+          (performance.now() - replayStart) * playbackSpeed + ts;
+
+        let needsRedraw = false;
+        while (eventIdx < trimEndIdx && allEvents[eventIdx].t <= elapsed) {
+          const evt = allEvents[eventIdx];
+          const result = processEventIncremental(
+            ctx,
+            evt,
+            allEvents.slice(0, eventIdx + 1),
+            replayState,
+          );
+
+          if (result.needsFullRedraw) {
+            eventIdx++;
+            needsRedraw = true;
+            continue;
+          }
+
+          if (needsRedraw) {
+            needsRedraw = false;
+            redrawUpTo(evt.t);
+          }
+
+          if (result.shapePreview) {
+            renderEventsToCanvas(ctx, allEvents.slice(0, eventIdx));
+            const sp = result.shapePreview;
+            drawShapeOnCanvas(
+              ctx,
+              sp.shape,
+              sp.x1,
+              sp.y1,
+              sp.x2,
+              sp.y2,
+              sp.color,
+              sp.size,
+              1,
+            );
+          }
+
+          // Update cursor
+          if (evt.type === 'click') {
+            if (cursorRef.current) {
+              cursorRef.current = {
+                ...cursorRef.current,
+                pressed: true,
+                pressTime: performance.now(),
+              };
+            }
+          } else if (result.cursorPosition) {
+            cursorRef.current = {
+              x: result.cursorPosition.x,
+              y: result.cursorPosition.y,
+              tool: replayState.tool || undefined,
+              color: replayState.color || undefined,
+              lastDrawTime: result.isDrawEvent
+                ? performance.now()
+                : cursorRef.current?.lastDrawTime,
+            };
+          } else if (result.stateChanged) {
+            cursorRef.current = {
+              x: cursorRef.current?.x ?? 0,
+              y: cursorRef.current?.y ?? 0,
+              tool: replayState.tool || undefined,
+              color: replayState.color || undefined,
+              lastDrawTime: cursorRef.current?.lastDrawTime,
+            };
+          }
+
+          eventIdx++;
+        }
+
+        if (needsRedraw) {
+          redrawUpTo(elapsed);
+        }
+
+        // Update progress
+        progressRef.current = Math.min(1, (elapsed - ts) / (te - ts));
+
+        // Stop when done (no loop)
+        if (eventIdx >= trimEndIdx) {
+          progressRef.current = 1;
+          cursorRef.current = null;
+          return;
+        }
+
+        animFrame = requestAnimationFrame(frame);
+      };
+
+      animFrame = requestAnimationFrame(frame);
+    })();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animFrame);
+      reader.cancel().catch(() => {});
+    };
+  }, [streamId, trimStart, trimEnd, playbackSpeed]);
+
+  return (
+    <div className="absolute inset-0">
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W}
+        height={CANVAS_H}
+        className="aspect-[4/3] w-full"
+      />
+      <CursorOverlay cursorRef={cursorRef} />
+      <ThumbnailProgressBar progressRef={progressRef} />
+    </div>
   );
 }
 
@@ -1573,6 +1889,7 @@ export function ErrorMsg({ msg }: { msg: string }) {
 export function SketchCard({
   sketch,
   isAdmin,
+  playbackSpeed,
 }: {
   sketch: {
     id: string;
@@ -1586,9 +1903,11 @@ export function SketchCard({
     remixOf?: { author?: { handle?: string | null } } | null;
   };
   isAdmin?: boolean;
+  playbackSpeed?: number;
 }) {
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const stream = sketch.stream;
   const thumbnailUrl = sketch.thumbnail?.url;
   const authorHandle = sketch.author?.handle;
@@ -1652,6 +1971,7 @@ export function SketchCard({
         href={`/sketch/${sketch.id}`}
         className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-100 active:scale-[0.98] sm:rounded-2xl"
         onMouseEnter={() => {
+          setIsHovering(true);
           // Start a subscription to warm the reactive cache for the sketch page.
           const unsub = db.core.subscribeQuery(
             sketchQuery(sketch.id),
@@ -1661,20 +1981,33 @@ export function SketchCard({
             },
           );
         }}
+        onMouseLeave={() => setIsHovering(false)}
       >
         {stream && (isLive || (everLive && !thumbPreloaded)) ? (
-          <LiveThumbnail streamId={stream.id} />
-        ) : thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt="Sketch thumbnail"
-            className="aspect-[4/3] w-full object-cover"
-          />
+          <LiveThumbnail streamId={stream.id} duration={sketch.duration} />
         ) : (
-          <div
-            className="aspect-[4/3] w-full"
-            style={{ backgroundColor: DEFAULT_BG }}
-          />
+          <div className="relative aspect-[4/3] w-full">
+            {thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt="Sketch thumbnail"
+                className="aspect-[4/3] w-full object-cover"
+              />
+            ) : (
+              <div
+                className="aspect-[4/3] w-full"
+                style={{ backgroundColor: DEFAULT_BG }}
+              />
+            )}
+            {isHovering && stream && stream.done && (
+              <ReplayThumbnail
+                streamId={stream.id}
+                trimStart={sketch.trimStart ?? 0}
+                trimEnd={sketch.trimEnd ?? null}
+                playbackSpeed={playbackSpeed ?? 2}
+              />
+            )}
+          </div>
         )}
         {effectiveDuration != null && effectiveDuration > 0 && (
           <span className="absolute top-1.5 left-1.5 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white sm:top-2 sm:left-2 sm:text-xs">
