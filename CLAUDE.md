@@ -14,6 +14,8 @@ Read the TODO.md and work through any open issues.
 
 You may not use "as any" unless you get explicit approval.
 
+Always run `pnpm check` after you've completed a unit of work.
+
 # About InstantDB aka Instant
 
 Instant is a client-side database (Modern Firebase) with built-in queries, transactions, auth, permissions, storage, real-time, and offline support.
