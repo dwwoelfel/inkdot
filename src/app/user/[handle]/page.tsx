@@ -16,7 +16,9 @@ function UserGalleryContent({ handle, userId }: { handle: string; userId?: strin
       ? { userSettings: { $: { where: { 'owner.id': userId } } } }
       : null,
   );
-  const playbackSpeed = settingsData?.userSettings?.[0]?.playbackSpeed ?? 2;
+  const userSettings = settingsData?.userSettings?.[0];
+  const playbackSpeed = userSettings?.playbackSpeed ?? 2;
+  const showCursor = userSettings?.showCursor ?? true;
 
   const { data } = db.useSuspenseQuery({
     sketches: {
@@ -61,7 +63,7 @@ function UserGalleryContent({ handle, userId }: { handle: string; userId?: strin
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
             {sketches.map((sketch) => (
-              <SketchCard key={sketch.id} sketch={sketch} playbackSpeed={playbackSpeed} />
+              <SketchCard key={sketch.id} sketch={sketch} playbackSpeed={playbackSpeed} showCursor={showCursor} />
             ))}
           </div>
         )}

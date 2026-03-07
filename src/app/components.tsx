@@ -797,9 +797,11 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
 export function LiveThumbnail({
   streamId,
   duration,
+  showCursor = true,
 }: {
   streamId: string;
   duration?: number | null;
+  showCursor?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cancelledRef = useRef(false);
@@ -938,7 +940,7 @@ export function LiveThumbnail({
         height={CANVAS_H}
         className="aspect-[4/3] w-full"
       />
-      <CursorOverlay cursorRef={cursorRef} />
+      {showCursor && <CursorOverlay cursorRef={cursorRef} />}
       <ThumbnailProgressBar progressRef={progressRef} />
     </div>
   );
@@ -987,11 +989,13 @@ export function ReplayThumbnail({
   trimStart,
   trimEnd,
   playbackSpeed,
+  showCursor = true,
 }: {
   streamId: string;
   trimStart: number;
   trimEnd: number | null;
   playbackSpeed: number;
+  showCursor?: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const progressRef = useRef(0);
@@ -1195,7 +1199,7 @@ export function ReplayThumbnail({
         height={CANVAS_H}
         className="aspect-[4/3] w-full"
       />
-      <CursorOverlay cursorRef={cursorRef} />
+      {showCursor && <CursorOverlay cursorRef={cursorRef} />}
       <ThumbnailProgressBar progressRef={progressRef} />
     </div>
   );
@@ -1890,6 +1894,7 @@ export function SketchCard({
   sketch,
   isAdmin,
   playbackSpeed,
+  showCursor,
 }: {
   sketch: {
     id: string;
@@ -1904,6 +1909,7 @@ export function SketchCard({
   };
   isAdmin?: boolean;
   playbackSpeed?: number;
+  showCursor?: boolean;
 }) {
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -1984,7 +1990,7 @@ export function SketchCard({
         onMouseLeave={() => setIsHovering(false)}
       >
         {stream && (isLive || (everLive && !thumbPreloaded)) ? (
-          <LiveThumbnail streamId={stream.id} duration={sketch.duration} />
+          <LiveThumbnail streamId={stream.id} duration={sketch.duration} showCursor={showCursor ?? true} />
         ) : (
           <div className="relative aspect-[4/3] w-full">
             {thumbnailUrl ? (
@@ -2005,6 +2011,7 @@ export function SketchCard({
                 trimStart={sketch.trimStart ?? 0}
                 trimEnd={sketch.trimEnd ?? null}
                 playbackSpeed={playbackSpeed ?? 2}
+                showCursor={showCursor ?? true}
               />
             )}
           </div>

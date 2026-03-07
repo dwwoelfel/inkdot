@@ -67,6 +67,7 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
   );
   const userSettings = settingsData?.userSettings?.[0];
   const savedSpeed = userSettings?.playbackSpeed ?? null;
+  const savedShowCursor = userSettings?.showCursor ?? null;
 
   const saveSpeed = useCallback(
     (s: number) => {
@@ -80,6 +81,25 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
         db.transact(
           db.tx.userSettings[settingsId]
             .create({ playbackSpeed: s })
+            .link({ owner: user.id }),
+        );
+      }
+    },
+    [user, userSettings],
+  );
+
+  const saveShowCursor = useCallback(
+    (show: boolean) => {
+      if (!user) return;
+      const settingsId = userSettings?.id || id();
+      if (userSettings) {
+        db.transact(
+          db.tx.userSettings[settingsId].update({ showCursor: show }),
+        );
+      } else {
+        db.transact(
+          db.tx.userSettings[settingsId]
+            .create({ showCursor: show })
             .link({ owner: user.id }),
         );
       }
@@ -207,6 +227,8 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
         onAutoplayEnd={handleReachedEnd}
         savedSpeed={savedSpeed}
         onSaveSpeed={saveSpeed}
+        savedShowCursor={savedShowCursor}
+        onSaveShowCursor={saveShowCursor}
         initialPaused={lineageStopped}
         onDelete={() => setDeleting(true)}
       />
@@ -245,6 +267,8 @@ function ReplayCanvas({
   onAutoplayEnd,
   savedSpeed,
   onSaveSpeed,
+  savedShowCursor,
+  onSaveShowCursor,
   initialPaused,
   onDelete,
 }: {
@@ -261,6 +285,8 @@ function ReplayCanvas({
   onAutoplayEnd?: () => void;
   savedSpeed?: number | null;
   onSaveSpeed?: (speed: number) => void;
+  savedShowCursor?: boolean | null;
+  onSaveShowCursor?: (show: boolean) => void;
   initialPaused?: boolean;
   onDelete?: () => void;
 }) {
@@ -275,7 +301,21 @@ function ReplayCanvas({
     pressed?: boolean;
     pressTime?: number;
   } | null>(null);
-  const [showCursor, setShowCursor] = useState(true);
+  const [showCursor, setShowCursorState] = useState(savedShowCursor ?? true);
+  const appliedSavedShowCursor = useRef(false);
+  useEffect(() => {
+    if (savedShowCursor != null && !appliedSavedShowCursor.current) {
+      appliedSavedShowCursor.current = true;
+      setShowCursorState(savedShowCursor);
+    }
+  }, [savedShowCursor]);
+  const setShowCursor = useCallback(
+    (v: boolean) => {
+      setShowCursorState(v);
+      onSaveShowCursor?.(v);
+    },
+    [onSaveShowCursor],
+  );
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(!initialPaused);

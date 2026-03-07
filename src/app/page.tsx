@@ -48,7 +48,9 @@ function GalleryContent({ userId, isAdmin }: { userId?: string; isAdmin?: boolea
       ? { userSettings: { $: { where: { 'owner.id': userId } } } }
       : null,
   );
-  const playbackSpeed = settingsData?.userSettings?.[0]?.playbackSpeed ?? 2;
+  const userSettings = settingsData?.userSettings?.[0];
+  const playbackSpeed = userSettings?.playbackSpeed ?? 2;
+  const showCursor = userSettings?.showCursor ?? true;
 
   const { data, pageInfo } = db.useSuspenseQuery({
     sketches: {
@@ -107,6 +109,7 @@ function GalleryContent({ userId, isAdmin }: { userId?: string; isAdmin?: boolea
                   sketch={sketch}
                   isAdmin={!!isAdmin}
                   playbackSpeed={playbackSpeed}
+                  showCursor={showCursor}
                 />
               ))}
             </div>
