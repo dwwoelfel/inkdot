@@ -972,6 +972,67 @@ export function LiveThumbnail({
   );
 }
 
+// -- Static Stream Thumbnail (renders final frame from stream when no thumbnail image exists) --
+
+function StaticStreamThumbnail({ streamId }: { streamId: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = DEFAULT_BG;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    let cancelled = false;
+    const readStream = db.streams.createReadStream({ streamId });
+    const reader = readStream.getReader();
+
+    let buffer = '';
+    const allEvents: StrokeEvent[] = [];
+
+    (async () => {
+      try {
+        while (!cancelled) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += value;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              allEvents.push(JSON.parse(line));
+            } catch {}
+          }
+        }
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === 'AbortError')) throw e;
+      }
+
+      if (!cancelled && allEvents.length > 0) {
+        renderEventsToCanvas(ctx, allEvents);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      reader.cancel().catch(() => {});
+    };
+  }, [streamId]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={CANVAS_W}
+      height={CANVAS_H}
+      className="aspect-[4/3] w-full"
+    />
+  );
+}
+
 // -- Thumbnail Progress Bar --
 
 function ThumbnailProgressBar({
@@ -2252,6 +2313,8 @@ export function SketchCard({
                 className="aspect-[4/3] w-full object-cover"
                 draggable={false}
               />
+            ) : stream?.id ? (
+              <StaticStreamThumbnail streamId={stream.id} />
             ) : (
               <div
                 className="aspect-[4/3] w-full"
