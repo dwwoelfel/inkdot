@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 import kanitBold from './fonts/Kanit-Bold.ttf';
 
+export const dynamic = 'force-static';
 export const alt = 'InkDot — Draw, share, and remix sketches';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
