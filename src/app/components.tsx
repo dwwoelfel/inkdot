@@ -2009,7 +2009,7 @@ export function renderEventsToCanvas(
     bgColor?: string;
   },
 ): RenderResult {
-  const bgColor = opts?.bgColor ?? DEFAULT_BG;
+  const initialBg = opts?.bgColor ?? DEFAULT_BG;
   const upToTime = opts?.upToTime;
 
   const filtered =
@@ -2018,6 +2018,11 @@ export function renderEventsToCanvas(
   const offsets = buildOffsets(filtered);
   const deleted = buildDeletedSet(filtered);
 
+  // Determine the last bg color so it goes behind all strokes
+  let bgColor = initialBg;
+  for (const evt of filtered) {
+    if (evt.type === 'bg') bgColor = evt.color || DEFAULT_BG;
+  }
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   resetDrawState();
@@ -2035,8 +2040,7 @@ export function renderEventsToCanvas(
 
   for (const evt of filtered) {
     if (evt.type === 'bg') {
-      ctx.fillStyle = evt.color || DEFAULT_BG;
-      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      // bg already applied above as the base layer; skip
     } else if (evt.type === 'state') {
       if (evt.tool) currentTool = evt.tool;
       if (evt.color) currentColor = evt.color;

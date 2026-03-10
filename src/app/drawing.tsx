@@ -369,15 +369,15 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
         showTraceRef.current &&
         traceImgRef.current;
 
-      if (hasTrace) {
-        // Determine final bg color
-        let currentBg = _initialBg;
-        for (const evt of localEventsRef.current) {
-          if (evt.type === 'bg') currentBg = evt.color || DEFAULT_BG;
-        }
-        ctx.fillStyle = currentBg;
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      // Determine final bg color so it goes behind all strokes
+      let currentBg = _initialBg;
+      for (const evt of localEventsRef.current) {
+        if (evt.type === 'bg') currentBg = evt.color || DEFAULT_BG;
+      }
+      ctx.fillStyle = currentBg;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
+      if (hasTrace) {
         // Draw trace image under strokes
         const img = traceImgRef.current!;
         const scale = Math.min(CANVAS_W / img.width, CANVAS_H / img.height);
@@ -389,18 +389,14 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
         ctx.globalAlpha = traceOpacityRef.current;
         ctx.drawImage(img, x, y, w, h);
         ctx.restore();
+      }
 
-        // Draw strokes (bg events will be handled by drawEvent which skips them)
-        resetDrawState();
-        const offsets = buildOffsets(localEventsRef.current);
-        const deleted = buildDeletedSet(localEventsRef.current);
-        for (const evt of localEventsRef.current) {
-          drawEvent(ctx, evt, 1, offsets, deleted);
-        }
-      } else {
-        renderEventsToCanvas(ctx, localEventsRef.current, {
-          bgColor: _initialBg,
-        });
+      // Draw strokes (drawEvent skips bg events)
+      resetDrawState();
+      const offsets = buildOffsets(localEventsRef.current);
+      const deleted = buildDeletedSet(localEventsRef.current);
+      for (const evt of localEventsRef.current) {
+        drawEvent(ctx, evt, 1, offsets, deleted);
       }
 
       canvasCacheRef.current = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
@@ -953,6 +949,14 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
       }
 
       switch (e.key) {
+        case 'Escape':
+          if (isDrawingRef.current && shapeStartRef.current) {
+            isDrawingRef.current = false;
+            shapeStartRef.current = null;
+            currentShapeIdRef.current = null;
+            redrawCanvas(bgColorRef.current);
+          }
+          break;
         case 'v':
           changeTool('move');
           break;
