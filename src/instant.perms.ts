@@ -42,7 +42,7 @@ const rules = {
   sketches: {
     bind: {
       isAuthor: "auth.id in data.ref('author.id')",
-      isAdmin: "auth.email.endsWith('@instantdb.com')",
+      isAdmin: "auth.email != null && auth.email.endsWith('@instantdb.com')",
       deleteWindowOpen:
         '(request.time - timestamp(data.createdAt)).getMinutes() < 6',
       noProtectedFieldsOnCreate:
@@ -52,14 +52,14 @@ const rules = {
     },
     allow: {
       view: 'true',
-      create: 'isAdmin || (auth.id != null && noProtectedFieldsOnCreate)',
+      create: 'isAdmin || (isAuthor && noProtectedFieldsOnCreate)',
       update: 'isAdmin || (isAuthor && noProtectedFieldsOnUpdate)',
       delete: '(isAuthor && deleteWindowOpen) || isAdmin',
     },
   },
   reports: {
     bind: {
-      isAdmin: "auth.email.endsWith('@instantdb.com')",
+      isAdmin: "auth.email != null && auth.email.endsWith('@instantdb.com')",
     },
     allow: {
       view: 'isAdmin',
