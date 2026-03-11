@@ -876,7 +876,13 @@ function CodeInput({ onComplete }: { onComplete: (code: string) => void }) {
 
 // -- Upgrade Modal --
 
-export function UpgradeModal({ onClose }: { onClose: () => void }) {
+export function UpgradeModal({
+  onClose,
+  reason,
+}: {
+  onClose: () => void;
+  reason?: string;
+}) {
   const [sentEmail, setSentEmail] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -909,7 +915,7 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
           Save your account
         </h2>
         <p className="text-text-secondary mb-5 text-center text-sm">
-          Link an email to keep your sketches.
+          {reason || 'Link an email to keep your sketches.'}
         </p>
         {!sentEmail ? (
           <form
@@ -2409,6 +2415,7 @@ export function UpvoteButton({
     score: number;
   } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [pending, setPending] = useState(false);
 
   const displayVoted = optimistic ? optimistic.voted : voted;
@@ -2428,8 +2435,12 @@ export function UpvoteButton({
 
     if (isOwnSketch) return;
 
-    if (!user || !user.email) {
+    if (!user) {
       setShowLogin(true);
+      return;
+    }
+    if (!user.email) {
+      setShowUpgrade(true);
       return;
     }
 
@@ -2549,6 +2560,14 @@ export function UpvoteButton({
             <LoginModal onClose={() => setShowLogin(false)} />,
             document.body,
           )}
+        {showUpgrade &&
+          createPortal(
+            <UpgradeModal
+              onClose={() => setShowUpgrade(false)}
+              reason="Link an email to vote on sketches."
+            />,
+            document.body,
+          )}
         <button
           onClick={
             isOwnSketch
@@ -2572,6 +2591,11 @@ export function UpvoteButton({
       {showLogin &&
         createPortal(
           <LoginModal onClose={() => setShowLogin(false)} />,
+          document.body,
+        )}
+      {showUpgrade &&
+        createPortal(
+          <UpgradeModal onClose={() => setShowUpgrade(false)} />,
           document.body,
         )}
       <button
