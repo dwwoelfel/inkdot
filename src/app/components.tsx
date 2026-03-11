@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useTheme } from './ThemeProvider';
 import { useRouter } from 'next/navigation';
@@ -875,7 +876,13 @@ function CodeInput({ onComplete }: { onComplete: (code: string) => void }) {
 
 // -- Upgrade Modal --
 
-export function UpgradeModal({ onClose }: { onClose: () => void }) {
+export function UpgradeModal({
+  onClose,
+  reason,
+}: {
+  onClose: () => void;
+  reason?: string;
+}) {
   const [sentEmail, setSentEmail] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -908,7 +915,7 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
           Save your account
         </h2>
         <p className="text-text-secondary mb-5 text-center text-sm">
-          Link an email to keep your sketches.
+          {reason || 'Link an email to keep your sketches.'}
         </p>
         {!sentEmail ? (
           <form
@@ -1719,6 +1726,128 @@ export function TimerDisplay({
   );
 }
 
+// -- Ink Display --
+
+export function InkDisplay({
+  inkRemaining,
+  inkBudget,
+}: {
+  inkRemaining: number;
+  inkBudget: number;
+}) {
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const progress = Math.max(0, inkRemaining / inkBudget);
+  const offset = c * (1 - progress);
+  const pct = progress * 100;
+
+  const color = pct <= 10 ? '#ef4444' : pct <= 25 ? '#eab308' : '#f43f5e';
+  const textColor =
+    pct <= 10
+      ? 'text-red-500'
+      : pct <= 25
+        ? 'text-yellow-500'
+        : 'text-text-secondary';
+
+  const label =
+    inkRemaining >= 1000
+      ? `${(inkRemaining / 1000).toFixed(1)}k`
+      : Math.round(inkRemaining).toString();
+
+  return (
+    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center">
+      <svg width="44" height="44" className="-rotate-90">
+        <circle
+          cx="22"
+          cy="22"
+          r={r}
+          fill="none"
+          stroke="#f1f5f9"
+          strokeWidth="3"
+        />
+        <circle
+          cx="22"
+          cy="22"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-150 ease-linear"
+        />
+      </svg>
+      <span className={`absolute text-[10px] font-bold ${textColor}`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+export function InkBudgetPreview({ budget }: { budget: number }) {
+  const passes = budget / CANVAS_W;
+  const svgW = 80;
+  const svgH = 60;
+  const pad = 6;
+  const innerW = svgW - pad * 2;
+  const innerH = svgH - pad * 2;
+  // 15 passes (12k) fills the mini canvas
+  const spacing = innerH / 15;
+
+  let d = '';
+  let y = pad;
+  let goingRight = true;
+  let left = passes;
+
+  for (let i = 0; i < Math.ceil(passes) && y <= svgH - pad; i++) {
+    const frac = Math.min(left, 1);
+    const len = innerW * frac;
+
+    if (i === 0) d += `M ${pad} ${y}`;
+
+    const endX = goingRight ? pad + len : pad + innerW - len;
+    d += ` L ${endX} ${y}`;
+    left -= frac;
+
+    if (left > 0) {
+      const nextY = y + spacing;
+      d += ` L ${endX} ${nextY}`;
+      y = nextY;
+    }
+    goingRight = !goingRight;
+  }
+
+  return (
+    <svg
+      width={svgW}
+      height={svgH}
+      className="text-text-secondary shrink-0"
+      aria-label={`Ink preview: ~${Math.round(passes)} lines across the canvas`}
+    >
+      <rect
+        x={1}
+        y={1}
+        width={svgW - 2}
+        height={svgH - 2}
+        rx={3}
+        fill="none"
+        stroke="currentColor"
+        opacity={0.15}
+      />
+      <path
+        d={d}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.45}
+      />
+    </svg>
+  );
+}
+
 // -- Drawing Helpers --
 
 export let lastX = 0;
@@ -2408,6 +2537,7 @@ export function UpvoteButton({
     score: number;
   } | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [pending, setPending] = useState(false);
 
   const displayVoted = optimistic ? optimistic.voted : voted;
@@ -2427,8 +2557,12 @@ export function UpvoteButton({
 
     if (isOwnSketch) return;
 
-    if (!user || !user.email) {
+    if (!user) {
       setShowLogin(true);
+      return;
+    }
+    if (!user.email) {
+      setShowUpgrade(true);
       return;
     }
 
@@ -2543,7 +2677,19 @@ export function UpvoteButton({
   if (compact) {
     return (
       <>
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+        {showLogin &&
+          createPortal(
+            <LoginModal onClose={() => setShowLogin(false)} />,
+            document.body,
+          )}
+        {showUpgrade &&
+          createPortal(
+            <UpgradeModal
+              onClose={() => setShowUpgrade(false)}
+              reason="Link an email to vote on sketches."
+            />,
+            document.body,
+          )}
         <button
           onClick={
             isOwnSketch
@@ -2564,7 +2710,16 @@ export function UpvoteButton({
 
   return (
     <>
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showLogin &&
+        createPortal(
+          <LoginModal onClose={() => setShowLogin(false)} />,
+          document.body,
+        )}
+      {showUpgrade &&
+        createPortal(
+          <UpgradeModal onClose={() => setShowUpgrade(false)} />,
+          document.body,
+        )}
       <button
         onClick={
           isOwnSketch
