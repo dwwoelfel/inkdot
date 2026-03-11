@@ -266,7 +266,6 @@ function DrawCanvas({
 
       if (cancelled) return;
 
-      const parentTrimStart = parent.trimStart ?? 0;
       const parentTrimEnd = parent.trimEnd ?? parent.durationMs ?? Infinity;
       // Include all events up to trimEnd — shapes drawn before trimStart
       // are still visible on the canvas at that point and must be included
