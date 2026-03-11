@@ -16,4 +16,5 @@ Adds a real `/best` route that plays the highest-scoring visible sketch in place
 - Queued the next best sketch in `/best` state so playback only switches after the current sketch reaches the end while playback is active
 - If the player is paused or already finished when the best sketch changes, `/best` now swaps immediately instead of waiting for autoplay end
 - Added an explainer banner on `/best` so the auto-switching behavior is visible to the user
+- `/best` now uses the same shared browse-page header style as `/top` and `/newest`, with its explainer folded into the same header card
 - Removed the homepage "Most loved" see-all link

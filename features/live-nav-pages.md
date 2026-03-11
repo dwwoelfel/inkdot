@@ -14,6 +14,7 @@ Adds direct navigation to the live browsing pages and introduces a live `/top` p
 - Home-page browse links now warm their route data on hover, touch, and focus via `db.core.subscribeQuery`, matching the sketch-thumbnail prefetch pattern
 - The browse-link warmers now reuse the exact shared query builders from the destination pages, so prefetch stays aligned if those routes change
 - The home-page `See all` link for `Fresh off the canvas` now uses the same shared `/newest` warmer
+- `/top` and `/newest` now share a lighter browse-page header with a label and tighter title instead of the plain inline heading
 - Added a new live `/top` page ordered by score descending
 - Kept `/top` on `useSuspenseQuery` with pagination so it updates like the other live browse pages
 - Switched `/top` to live client-side pagination over the full sketch list so displayed entries are truly sorted by score, then recency

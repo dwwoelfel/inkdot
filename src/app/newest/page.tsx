@@ -2,8 +2,8 @@
 
 import { db } from '@/lib/db';
 import { newestPageQuery, type GalleryCursor } from '@/lib/browse-queries';
-import Link from 'next/link';
 import { useState } from 'react';
+import { BrowsePageHeader } from '../BrowsePageHeader';
 import { AuthHeader, SketchCard } from '../components';
 
 const PAGE_SIZE = 50;
@@ -58,15 +58,7 @@ function NewestGalleryContent({
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
       <div className="w-full max-w-4xl space-y-4 px-3 py-3 sm:space-y-8 sm:p-6">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/"
-            className="text-text-tertiary hover:text-text-secondary text-xs sm:text-sm"
-          >
-            &larr; Home
-          </Link>
-          <h2 className="text-text-secondary text-sm sm:text-lg">Newest</h2>
-        </div>
+        <BrowsePageHeader label="Live Feed" title="Newest" />
 
         {sketches.length === 0 && !hasPrev ? (
           <div className="text-text-tertiary py-12 text-center sm:py-20">

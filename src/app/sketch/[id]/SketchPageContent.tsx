@@ -27,6 +27,7 @@ import {
   computePlaybackProgress,
   UpvoteButton,
 } from '../../components';
+import { BrowsePageHeader } from '../../BrowsePageHeader';
 
 type UserInfo = { id: string; email?: string | null };
 
@@ -58,6 +59,7 @@ export function SketchPageContent({
   onAutoplayBestNavigate,
   onPlaybackActiveChange,
   showBestExplanation,
+  showBestHeader,
 }: {
   user?: UserInfo;
   forcedSketchId?: string;
@@ -66,6 +68,7 @@ export function SketchPageContent({
   onAutoplayBestNavigate?: (sketchId: string) => void;
   onPlaybackActiveChange?: (isActive: boolean) => void;
   showBestExplanation?: boolean;
+  showBestHeader?: boolean;
 }) {
   const params = useParams();
   const router = useRouter();
@@ -273,17 +276,17 @@ export function SketchPageContent({
   return (
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
-      {showBestExplanation && (
-        <div className="w-full max-w-4xl px-2 pt-2 sm:px-6">
-          <div className="border-border bg-surface-secondary rounded-2xl border px-4 py-3">
-            <p className="text-text-tertiary text-[11px] font-semibold tracking-[0.14em] uppercase">
-              Best
-            </p>
-            <p className="text-text-secondary mt-1 text-sm leading-relaxed">
-              Live view of the top-scoring sketch. Vote for your favorite or
-              sketch your masterpiece to unseat it.
-            </p>
-          </div>
+      {showBestHeader && (
+        <div className="w-full max-w-4xl px-3 pt-3 sm:px-6 sm:pt-6">
+          <BrowsePageHeader
+            label="Live View"
+            title="Best"
+            description={
+              showBestExplanation
+                ? 'Live view of the top-scoring sketch. Vote for your favorite or sketch your masterpiece to unseat it.'
+                : undefined
+            }
+          />
         </div>
       )}
       <ReplayCanvas

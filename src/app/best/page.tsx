@@ -4,6 +4,7 @@ import { bestPageQuery } from '@/lib/browse-queries';
 import { db } from '@/lib/db';
 import Link from 'next/link';
 import { startTransition, useCallback, useEffect, useState } from 'react';
+import { BrowsePageHeader } from '../BrowsePageHeader';
 import { AuthHeader } from '../components';
 import { SketchPageContent } from '../sketch/[id]/SketchPageContent';
 
@@ -72,6 +73,7 @@ export default function BestPage() {
         onAutoplayBestNavigate={handleAutoplayBestNavigate}
         onPlaybackActiveChange={setIsPlaybackActive}
         showBestExplanation
+        showBestHeader
       />
     );
   }
@@ -79,6 +81,13 @@ export default function BestPage() {
   return (
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
+      <div className="w-full max-w-4xl space-y-4 px-3 py-3 sm:space-y-8 sm:p-6">
+        <BrowsePageHeader
+          label="Live View"
+          title="Best"
+          description="Live view of the top-scoring sketch. Vote for your favorite or sketch your masterpiece to unseat it."
+        />
+      </div>
       <div className="flex w-full max-w-4xl flex-1 flex-col items-center justify-center gap-4 px-3 py-6 text-center sm:px-6">
         <p className="text-text-secondary text-base sm:text-lg">
           Opening the current best sketch...
