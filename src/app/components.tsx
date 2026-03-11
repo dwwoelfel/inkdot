@@ -122,6 +122,99 @@ export function ToolIconSvg({
   );
 }
 
+export function PencilIcon({
+  size,
+  filled = false,
+}: {
+  size: number;
+  filled?: boolean;
+}) {
+  const bodyFill = filled ? '#fbbf24' : 'none';
+  const bodyStroke = filled ? '#b45309' : 'currentColor';
+  const graphiteStroke = filled ? '#374151' : 'currentColor';
+  const coreStroke = filled ? '#92400e' : 'currentColor';
+  const ferruleFill = filled ? '#9ca3af' : 'none';
+  const ferruleStroke = filled ? '#6b7280' : 'currentColor';
+  const eraserFill = filled ? '#f472b6' : 'currentColor';
+  const eraserStroke = filled ? '#db2777' : 'currentColor';
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      style={{ overflow: 'visible' }}
+    >
+      <path
+        d="M9 6 L10 4.3 L11 2.7 L12 1 L13 2.7 L14 4.3 L15 6 L15 18 L9 18 Z"
+        fill={bodyFill}
+        stroke={bodyStroke}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        style={{ transition: 'fill 0.3s, stroke 0.3s' }}
+      />
+      <line
+        x1="12"
+        y1="1"
+        x2="12"
+        y2="6"
+        stroke={graphiteStroke}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="12"
+        y1="6"
+        x2="12"
+        y2="18"
+        stroke={coreStroke}
+        strokeWidth="1.2"
+        opacity="0.5"
+      />
+      <line
+        x1="10.5"
+        y1="6"
+        x2="10.5"
+        y2="18"
+        stroke={coreStroke}
+        strokeWidth="0.5"
+        opacity="0.15"
+      />
+      <line
+        x1="13.5"
+        y1="6"
+        x2="13.5"
+        y2="18"
+        stroke={coreStroke}
+        strokeWidth="0.5"
+        opacity="0.15"
+      />
+      <rect
+        x="9"
+        y="18"
+        width="6"
+        height="2"
+        fill={ferruleFill}
+        stroke={ferruleStroke}
+        strokeWidth="1.5"
+        style={{ transition: 'fill 0.3s, stroke 0.3s' }}
+      />
+      <rect
+        x="9"
+        y="20"
+        width="6"
+        height="2.5"
+        rx="1"
+        fill={eraserFill}
+        fillOpacity={filled ? 1 : 0.15}
+        stroke={eraserStroke}
+        strokeWidth="1.5"
+        style={{ transition: 'fill 0.3s, stroke 0.3s, fill-opacity 0.3s' }}
+      />
+    </svg>
+  );
+}
+
 // -- Constants --
 
 export const PEN_COLORS = [
@@ -343,6 +436,11 @@ function HeaderMenu() {
   const menuRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const { user } = db.useAuth();
+  const { data } = db.useQuery(
+    user?.id ? { $users: { $: { where: { id: user.id } } } } : null,
+  );
+  const handle = data?.$users?.[0]?.handle;
 
   const themeLabel =
     theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark';
@@ -389,8 +487,12 @@ function HeaderMenu() {
               router.push(href);
               setOpen(false);
             }}
+            mySketchesHref={
+              handle ? `/user/${encodeURIComponent(handle)}` : undefined
+            }
           />
           <db.SignedIn>
+            <div className="border-border my-1 border-t" />
             <SignedInMenuItems onClose={() => setOpen(false)} />
           </db.SignedIn>
         </div>
@@ -401,8 +503,10 @@ function HeaderMenu() {
 
 function BrowseMenuItems({
   onNavigate,
+  mySketchesHref,
 }: {
   onNavigate: (href: string) => void;
+  mySketchesHref?: string;
 }) {
   return (
     <>
@@ -410,18 +514,7 @@ function BrowseMenuItems({
         onClick={() => onNavigate('/best')}
         className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 2l2.4 4.86L20 7.64l-4 3.9.94 5.46L12 14.77 7.06 17l.94-5.46-4-3.9 5.6-.78z" />
-        </svg>
+        <PencilIcon size={14} filled />
         Best
       </button>
       <button
@@ -462,26 +555,9 @@ function BrowseMenuItems({
         </svg>
         Top
       </button>
-    </>
-  );
-}
-
-function SignedInMenuItems({ onClose }: { onClose: () => void }) {
-  const user = db.useUser();
-  const router = useRouter();
-  const { data } = db.useSuspenseQuery({
-    $users: { $: { where: { id: user.id } } },
-  });
-  const handle = data.$users[0]?.handle;
-
-  return (
-    <>
-      {handle && (
+      {mySketchesHref && (
         <button
-          onClick={() => {
-            router.push(`/user/${encodeURIComponent(handle)}`);
-            onClose();
-          }}
+          onClick={() => onNavigate(mySketchesHref)}
           className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
         >
           <svg
@@ -502,6 +578,25 @@ function SignedInMenuItems({ onClose }: { onClose: () => void }) {
           My sketches
         </button>
       )}
+    </>
+  );
+}
+
+function SignedInMenuItems({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          router.push('/new');
+          onClose();
+        }}
+        className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+      >
+        <ToolIconSvg tool="pen" size={14} />
+        Create Sketch
+      </button>
       <div className="border-border my-1 border-t" />
       <button
         onClick={() => {
@@ -2602,91 +2697,6 @@ export function UpvoteButton({
     }
   };
 
-  const pencilPath =
-    'M9 6 L10 4.3 L11 2.7 L12 1 L13 2.7 L14 4.3 L15 6 L15 18 L9 18 Z';
-
-  const pencilIcon = (size: number) => (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      style={{ overflow: 'visible' }}
-    >
-      {/* Pencil body */}
-      <path
-        d={pencilPath}
-        fill={displayVoted ? '#fbbf24' : 'none'}
-        stroke={displayVoted ? '#b45309' : 'currentColor'}
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        style={{ transition: 'fill 0.3s, stroke 0.3s' }}
-      />
-      {/* Graphite tip detail */}
-      <line
-        x1="12"
-        y1="1"
-        x2="12"
-        y2="6"
-        stroke={displayVoted ? '#374151' : 'currentColor'}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      {/* Center graphite core line */}
-      <line
-        x1="12"
-        y1="6"
-        x2="12"
-        y2="18"
-        stroke={displayVoted ? '#92400e' : 'currentColor'}
-        strokeWidth="1.2"
-        opacity="0.5"
-      />
-      {/* Hexagonal facet edges */}
-      <line
-        x1="10.5"
-        y1="6"
-        x2="10.5"
-        y2="18"
-        stroke={displayVoted ? '#92400e' : 'currentColor'}
-        strokeWidth="0.5"
-        opacity="0.15"
-      />
-      <line
-        x1="13.5"
-        y1="6"
-        x2="13.5"
-        y2="18"
-        stroke={displayVoted ? '#92400e' : 'currentColor'}
-        strokeWidth="0.5"
-        opacity="0.15"
-      />
-      {/* Ferrule band */}
-      <rect
-        x="9"
-        y="18"
-        width="6"
-        height="2"
-        fill={displayVoted ? '#9ca3af' : 'none'}
-        stroke={displayVoted ? '#6b7280' : 'currentColor'}
-        strokeWidth="1.5"
-        style={{ transition: 'fill 0.3s, stroke 0.3s' }}
-      />
-      {/* Eraser */}
-      <rect
-        x="9"
-        y="20"
-        width="6"
-        height="2.5"
-        rx="1"
-        fill={displayVoted ? '#f472b6' : 'currentColor'}
-        fillOpacity={displayVoted ? 1 : 0.15}
-        stroke={displayVoted ? '#db2777' : 'currentColor'}
-        strokeWidth="1.5"
-        style={{ transition: 'fill 0.3s, stroke 0.3s, fill-opacity 0.3s' }}
-      />
-    </svg>
-  );
-
   if (compact) {
     return (
       <>
@@ -2714,7 +2724,7 @@ export function UpvoteButton({
           }
           className={`flex items-center gap-1 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums transition-colors sm:text-xs ${isOwnSketch ? '!cursor-default' : 'cursor-pointer hover:bg-black/70'}`}
         >
-          {pencilIcon(12)}
+          <PencilIcon size={12} filled={displayVoted} />
           {displayScore > 0 && <AnimatedNumber value={displayScore} />}
         </button>
       </>
@@ -2750,7 +2760,7 @@ export function UpvoteButton({
             : 'hover:bg-hover cursor-pointer active:scale-95'
         }`}
       >
-        {pencilIcon(16)}
+        <PencilIcon size={16} filled={displayVoted} />
         <AnimatedNumber value={displayScore} />
       </button>
     </>
