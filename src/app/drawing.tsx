@@ -1008,7 +1008,13 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [changeTool, changeBrushSize, changePenColor, changeBgColor]);
+  }, [
+    changeTool,
+    changeBrushSize,
+    changePenColor,
+    changeBgColor,
+    redrawCanvas,
+  ]);
 
   return {
     // Canvas

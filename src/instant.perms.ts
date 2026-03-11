@@ -43,12 +43,18 @@ const rules = {
     bind: {
       isAuthor: "auth.id in data.ref('author.id')",
       isAdmin: "auth.email.endsWith('@instantdb.com')",
+      deleteWindowOpen:
+        '(request.time - timestamp(data.createdAt)).getMinutes() < 6',
+      noProtectedFieldsOnCreate:
+        "!('flagged' in request.modifiedFields) && !('score' in request.modifiedFields)",
+      noProtectedFieldsOnUpdate:
+        "!('createdAt' in request.modifiedFields) && !('flagged' in request.modifiedFields) && !('score' in request.modifiedFields)",
     },
     allow: {
       view: 'true',
-      create: 'auth.id != null',
-      update: 'isAuthor || isAdmin',
-      delete: 'isAuthor || isAdmin',
+      create: 'isAdmin || (auth.id != null && noProtectedFieldsOnCreate)',
+      update: 'isAdmin || (isAuthor && noProtectedFieldsOnUpdate)',
+      delete: '(isAuthor && deleteWindowOpen) || isAdmin',
     },
   },
   reports: {

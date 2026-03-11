@@ -1,6 +1,8 @@
 'use client';
 
 import { db } from '@/lib/db';
+import { getErrorMessage } from '@/lib/error-message';
+import { showToast } from '@/lib/toast';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -2647,6 +2649,7 @@ export function SketchCard({
 }) {
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
@@ -2663,6 +2666,12 @@ export function SketchCard({
   if (isCurrentlyLive && !everLive) {
     setEverLive(true);
   }
+
+  useEffect(() => {
+    if (!confirmDelete) {
+      setDeletePending(false);
+    }
+  }, [confirmDelete]);
 
   useEffect(() => {
     if (!everLive || !thumbnailUrl) return;
@@ -2898,18 +2907,34 @@ export function SketchCard({
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setConfirmDelete(false)}
+                disabled={deletePending}
                 className="text-text-secondary hover:bg-hover rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  db.transact(db.tx.sketches[sketch.id].delete());
-                  setConfirmDelete(false);
+                onClick={async () => {
+                  setDeletePending(true);
+                  try {
+                    await db.transact(db.tx.sketches[sketch.id].delete());
+                    setConfirmDelete(false);
+                  } catch (error) {
+                    showToast({
+                      message: getErrorMessage(
+                        error,
+                        'Failed to delete sketch. Please try again.',
+                        'Delete failed. You can only delete your own sketches for the first 5 minutes.',
+                      ),
+                      tone: 'error',
+                    });
+                  } finally {
+                    setDeletePending(false);
+                  }
                 }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+                disabled={deletePending}
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Delete
+                {deletePending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

@@ -1,6 +1,12 @@
 'use client';
 
 import { db } from '@/lib/db';
+import {
+  canDeleteOwnSketch,
+  SKETCH_DELETE_WINDOW_MS,
+} from '@/lib/sketch-delete';
+import { getErrorMessage } from '@/lib/error-message';
+import { showToast } from '@/lib/toast';
 import { id } from '@instantdb/react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -170,8 +176,19 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
     setLineageStopped(true);
   }, []);
 
-  // Capture current time once for orphan detection (must be before early returns)
-  const [now] = useState(() => Date.now());
+  // Track current time for delete-window gating and orphan detection.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isAuthor || isAdmin || !sketch?.createdAt) return;
+    if (!canDeleteOwnSketch(sketch.createdAt, now)) return;
+
+    const expiresAt = sketch.createdAt + SKETCH_DELETE_WINDOW_MS;
+    const timeout = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, expiresAt - now) + 50,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [isAuthor, isAdmin, now, sketch?.createdAt]);
 
   const sketchMissing = !sketch || (sketch.flagged && !isAuthor) || deleting;
 
@@ -209,6 +226,8 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
     !!sketch.createdAt &&
     now > sketch.createdAt + maxDurationMs;
   const effectiveLive = !stream.done && !isOrphaned;
+  const canDelete =
+    isAdmin || (isAuthor && canDeleteOwnSketch(sketch.createdAt, now));
 
   const isLineagePlaying = !!lineageStreamIds;
   const effectiveStreamIds = lineageStreamIds ?? [stream.id];
@@ -223,6 +242,7 @@ function SketchPageContent({ user }: { user?: UserInfo }) {
         isLive={isLineagePlaying ? false : effectiveLive}
         isAuthor={isLineagePlaying ? false : isAuthor}
         isAdmin={isLineagePlaying ? false : isAdmin}
+        canDelete={isLineagePlaying ? false : canDelete}
         canReport={!!user && !isAuthor}
         savedTrimStart={isLineagePlaying ? null : (sketch.trimStart ?? null)}
         savedTrimEnd={isLineagePlaying ? null : (sketch.trimEnd ?? null)}
@@ -266,6 +286,7 @@ function ReplayCanvas({
   isLive,
   isAuthor,
   isAdmin,
+  canDelete,
   canReport,
   savedTrimStart,
   savedTrimEnd,
@@ -287,6 +308,7 @@ function ReplayCanvas({
   isLive: boolean;
   isAuthor: boolean;
   isAdmin: boolean;
+  canDelete: boolean;
   canReport: boolean;
   savedTrimStart: number | null;
   savedTrimEnd: number | null;
@@ -368,7 +390,18 @@ function ReplayCanvas({
     trimEnd: number | null;
   } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  useEffect(() => {
+    if (!canDelete && confirmDelete) {
+      setConfirmDelete(false);
+    }
+  }, [canDelete, confirmDelete]);
+  useEffect(() => {
+    if (!confirmDelete) {
+      setDeletePending(false);
+    }
+  }, [confirmDelete]);
   const trimStartRef = useRef(trimStart);
   trimStartRef.current = trimStart;
   const trimEndRef = useRef(trimEnd);
@@ -855,7 +888,7 @@ function ReplayCanvas({
           >
             Back
           </button>
-          {(isAuthor || isAdmin) && (
+          {canDelete && (
             <button
               onClick={() => setConfirmDelete(true)}
               className="text-text-tertiary text-xs font-medium transition-colors hover:text-red-500 sm:text-sm"
@@ -1151,19 +1184,35 @@ function ReplayCanvas({
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDelete(false)}
+                disabled={deletePending}
                 className="bg-surface-secondary text-text-secondary hover:bg-hover rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  onDelete?.();
-                  db.transact(db.tx.sketches[sketchId].delete());
-                  router.push('/');
+                onClick={async () => {
+                  setDeletePending(true);
+                  try {
+                    await db.transact(db.tx.sketches[sketchId].delete());
+                    onDelete?.();
+                    router.push('/');
+                  } catch (error) {
+                    showToast({
+                      message: getErrorMessage(
+                        error,
+                        'Failed to delete sketch. Please try again.',
+                        'Delete failed. You can only delete your own sketches for the first 5 minutes.',
+                      ),
+                      tone: 'error',
+                    });
+                  } finally {
+                    setDeletePending(false);
+                  }
                 }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+                disabled={deletePending}
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Delete
+                {deletePending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
