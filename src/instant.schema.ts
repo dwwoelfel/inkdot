@@ -26,7 +26,7 @@ const _schema = i.schema({
       durationMs: i.number().optional(),
       trimStart: i.number().optional(),
       trimEnd: i.number().optional(),
-      flagged: i.boolean().optional(),
+      flagged: i.boolean().indexed().optional(),
       score: i.number().indexed().optional(),
     }),
     votes: i.entity({

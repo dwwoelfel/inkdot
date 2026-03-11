@@ -2,13 +2,18 @@
 
 import { db } from '@/lib/db';
 import { getErrorMessage } from '@/lib/error-message';
+import { sketchQuery } from '@/lib/sketch-query';
+import {
+  beginOptimisticVote,
+  clearOptimisticVote,
+  settleOptimisticVote,
+} from '@/lib/vote-store';
 import { showToast } from '@/lib/toast';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useTheme } from './ThemeProvider';
 import { useRouter } from 'next/navigation';
-import { sketchQuery } from './sketch/[id]/query';
 
 // -- Types --
 
@@ -335,6 +340,7 @@ function HeaderMenu() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
 
   const themeLabel =
     theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark';
@@ -375,12 +381,86 @@ function HeaderMenu() {
             <ThemeIcon theme={theme} />
             Theme: {themeLabel}
           </button>
+          <div className="border-border my-1 border-t" />
+          <BrowseMenuItems
+            onNavigate={(href) => {
+              router.push(href);
+              setOpen(false);
+            }}
+          />
           <db.SignedIn>
             <SignedInMenuItems onClose={() => setOpen(false)} />
           </db.SignedIn>
         </div>
       )}
     </div>
+  );
+}
+
+function BrowseMenuItems({
+  onNavigate,
+}: {
+  onNavigate: (href: string) => void;
+}) {
+  return (
+    <>
+      <button
+        onClick={() => onNavigate('/best')}
+        className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2l2.4 4.86L20 7.64l-4 3.9.94 5.46L12 14.77 7.06 17l.94-5.46-4-3.9 5.6-.78z" />
+        </svg>
+        Best
+      </button>
+      <button
+        onClick={() => onNavigate('/newest')}
+        className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 5v14" />
+          <path d="M19 12H5" />
+        </svg>
+        Newest
+      </button>
+      <button
+        onClick={() => onNavigate('/top')}
+        className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 18L12 6l6 12" />
+          <path d="M9 14h6" />
+        </svg>
+        Top
+      </button>
+    </>
   );
 }
 
@@ -2474,20 +2554,36 @@ export function UpvoteButton({
     if (pending) return;
     setPending(true);
 
+    const nextDisplayScore = displayVoted
+      ? Math.max(0, displayScore - 1)
+      : displayScore + 1;
+    const nextStoredScore = Math.max(0, nextDisplayScore - 1);
+    const requestId = beginOptimisticVote(sketchId, nextStoredScore);
+
     // Optimistic update
     setOptimistic({
       voted: !displayVoted,
-      score: displayVoted ? Math.max(0, displayScore - 1) : displayScore + 1,
+      score: nextDisplayScore,
     });
 
     try {
-      await fetch('/api/vote', {
+      const response = await fetch('/api/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sketchId }),
       });
+      if (!response.ok) {
+        throw new Error('Vote request failed');
+      }
+      const result = (await response.json()) as { score?: number };
+      settleOptimisticVote(
+        sketchId,
+        requestId,
+        result.score ?? nextStoredScore,
+      );
     } catch {
       // Revert on error
+      clearOptimisticVote(sketchId, requestId);
       setOptimistic(null);
     } finally {
       setPending(false);
@@ -2672,10 +2768,12 @@ export function SketchCard({
   playbackSpeed?: number;
   showCursor?: boolean;
 }) {
+  const { user } = db.useAuth();
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [replayRestartKey, setReplayRestartKey] = useState(0);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
   const stream = sketch.stream;
@@ -2746,7 +2844,7 @@ export function SketchCard({
           setIsHovering(true);
           // Start a subscription to warm the reactive cache for the sketch page.
           const unsub = db.core.subscribeQuery(
-            sketchQuery(sketch.id),
+            sketchQuery(sketch.id, user?.id),
             async () => {
               await db.core._reactor.querySubs.flush();
               unsub();
@@ -2758,6 +2856,10 @@ export function SketchCard({
           longPressTriggered.current = false;
           longPressTimer.current = setTimeout(() => {
             longPressTriggered.current = true;
+            if (stream?.done && isHovering) {
+              setReplayRestartKey((value) => value + 1);
+              return;
+            }
             setIsHovering(true);
           }, 300);
         }}
@@ -2814,6 +2916,7 @@ export function SketchCard({
             )}
             {isHovering && stream && stream.done && (
               <ReplayThumbnail
+                key={`${stream.id}-${replayRestartKey}`}
                 streamId={stream.id}
                 trimStart={sketch.trimStart ?? 0}
                 trimEnd={sketch.trimEnd ?? null}

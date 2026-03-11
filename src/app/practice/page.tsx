@@ -96,7 +96,7 @@ function PracticeCanvas() {
           href="/new"
           className="border-border text-text-secondary hover:border-border-strong hover:text-text-primary rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
         >
-          Create sketch
+          Create Sketch
         </Link>
         <span className="text-text-tertiary text-xs font-medium">
           Practice mode

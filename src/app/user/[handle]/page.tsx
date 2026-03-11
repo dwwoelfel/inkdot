@@ -1,6 +1,7 @@
 'use client';
 
 import { db } from '@/lib/db';
+import { viewerVotesQuery } from '@/lib/sketch-query';
 import Link from 'next/link';
 import { use } from 'react';
 import { AuthHeader, ErrorMsg, SketchCard } from '../../components';
@@ -30,7 +31,7 @@ function UserGalleryContent({
       thumbnail: {},
       author: {},
       remixOf: { author: {} },
-      votes: {},
+      ...viewerVotesQuery(userId),
       $: {
         order: { createdAt: 'desc' as const },
         where: { 'author.handle': handle },
@@ -63,7 +64,7 @@ function UserGalleryContent({
             href="/new"
             className="bg-accent text-accent-text shadow-border hover:bg-accent-hover rounded-lg px-3 py-1.5 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base"
           >
-            Create sketch
+            Create Sketch
           </Link>
         </div>
 

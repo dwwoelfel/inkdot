@@ -1,24 +1,28 @@
 'use client';
 
+import { topPageQuery } from '@/lib/browse-queries';
 import { db } from '@/lib/db';
-import { newestPageQuery, type GalleryCursor } from '@/lib/browse-queries';
+import {
+  reconcileOptimisticVotes,
+  useOptimisticVoteScores,
+} from '@/lib/vote-store';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthHeader, SketchCard } from '../components';
 
 const PAGE_SIZE = 50;
 
-function SignedInNewestGallery() {
+function SignedInTopGallery() {
   const user = db.useUser();
   return (
-    <NewestGalleryContent
+    <TopGalleryContent
       userId={user.id}
       isAdmin={!!user.email?.endsWith('@instantdb.com')}
     />
   );
 }
 
-function NewestGalleryContent({
+function TopGalleryContent({
   userId,
   isAdmin,
 }: {
@@ -32,27 +36,29 @@ function NewestGalleryContent({
   const playbackSpeed = userSettings?.playbackSpeed ?? 2;
   const showCursor = userSettings?.showCursor ?? true;
 
-  const [cursors, setCursors] = useState<{
-    first?: number;
-    after?: GalleryCursor;
-    last?: number;
-    before?: GalleryCursor;
-  }>({ first: PAGE_SIZE });
+  const [page, setPage] = useState(0);
+  const optimisticScores = useOptimisticVoteScores();
 
-  const { data, pageInfo } = db.useSuspenseQuery(
-    newestPageQuery(userId, cursors),
-  );
+  const { data } = db.useSuspenseQuery(topPageQuery(userId));
 
-  const sketches = (data.sketches ?? []).filter(
-    (s) => !s.flagged || s.author?.id === userId,
-  );
+  useEffect(() => {
+    reconcileOptimisticVotes(data.sketches ?? []);
+  }, [data.sketches]);
 
-  const endCursor = pageInfo?.sketches?.endCursor as GalleryCursor | undefined;
-  const startCursor = pageInfo?.sketches?.startCursor as
-    | GalleryCursor
-    | undefined;
-  const hasNext = pageInfo?.sketches?.hasNextPage ?? false;
-  const hasPrev = pageInfo?.sketches?.hasPreviousPage ?? false;
+  const sortedSketches = [...(data.sketches ?? [])]
+    .filter((s) => !s.flagged || s.author?.id === userId)
+    .sort((a, b) => {
+      const scoreDelta =
+        (optimisticScores[b.id]?.score ?? b.score ?? 0) -
+        (optimisticScores[a.id]?.score ?? a.score ?? 0);
+      if (scoreDelta !== 0) return scoreDelta;
+      return b.createdAt - a.createdAt;
+    });
+  const startIndex = page * PAGE_SIZE;
+  const sketches = sortedSketches.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const hasPrev = page > 0;
+  const hasNext = startIndex + PAGE_SIZE < sortedSketches.length;
 
   return (
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
@@ -65,14 +71,14 @@ function NewestGalleryContent({
           >
             &larr; Home
           </Link>
-          <h2 className="text-text-secondary text-sm sm:text-lg">Newest</h2>
+          <h2 className="text-text-secondary text-sm sm:text-lg">Top</h2>
         </div>
 
         {sketches.length === 0 && !hasPrev ? (
           <div className="text-text-tertiary py-12 text-center sm:py-20">
-            <p className="mb-4 text-5xl sm:text-6xl">🎨</p>
+            <p className="mb-4 text-5xl sm:text-6xl">🏆</p>
             <p className="text-text-secondary text-base font-medium sm:text-lg">
-              No sketches yet
+              No top sketches yet
             </p>
           </div>
         ) : (
@@ -92,16 +98,12 @@ function NewestGalleryContent({
               hasPrev={hasPrev}
               hasNext={hasNext}
               onPrev={() => {
-                if (startCursor) {
-                  setCursors({ before: startCursor, last: PAGE_SIZE });
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                setPage((current) => Math.max(0, current - 1));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onNext={() => {
-                if (endCursor) {
-                  setCursors({ after: endCursor, first: PAGE_SIZE });
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                setPage((current) => current + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
           </>
@@ -143,14 +145,14 @@ function Pagination({
   );
 }
 
-export default function NewestPage() {
+export default function TopPage() {
   return (
     <>
       <db.SignedIn>
-        <SignedInNewestGallery />
+        <SignedInTopGallery />
       </db.SignedIn>
       <db.SignedOut>
-        <NewestGalleryContent />
+        <TopGalleryContent />
       </db.SignedOut>
     </>
   );

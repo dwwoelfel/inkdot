@@ -1,6 +1,12 @@
 'use client';
 
+import {
+  bestPageQuery,
+  newestPageQuery,
+  topPageQuery,
+} from '@/lib/browse-queries';
 import { db } from '@/lib/db';
+import { sketchQuery, viewerVotesQuery } from '@/lib/sketch-query';
 import Link from 'next/link';
 import { AuthHeader, LoginModal, SketchCard } from './components';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -11,6 +17,8 @@ const NEW_DESKTOP_PREVIEW_COUNT = 4;
 
 const createSketchClass =
   'rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-text shadow-md shadow-border transition-all hover:bg-accent-hover hover:shadow-lg hover:shadow-slate-400 active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base';
+const browseLinkClass =
+  'text-text-tertiary hover:text-text-secondary text-xs font-medium transition-colors sm:text-sm';
 
 function CreateSketchButton() {
   const [showLogin, setShowLogin] = useState(false);
@@ -20,9 +28,85 @@ function CreateSketchButton() {
         <LoginModal onClose={() => setShowLogin(false)} redirectTo="/new" />
       )}
       <button onClick={() => setShowLogin(true)} className={createSketchClass}>
-        Create sketch
+        Create Sketch
       </button>
     </>
+  );
+}
+
+function warmBestRoute(userId?: string) {
+  const bestRouteQuery = bestPageQuery(userId);
+
+  const unsub = db.core.subscribeQuery(bestRouteQuery, async (resp) => {
+    const bestSketchId = resp.data?.sketches?.[0]?.id;
+    if (bestSketchId) {
+      const warmSketchUnsub = db.core.subscribeQuery(
+        sketchQuery(bestSketchId, userId),
+        async () => {
+          await db.core._reactor.querySubs.flush();
+          warmSketchUnsub();
+          unsub();
+        },
+      );
+      return;
+    }
+
+    await db.core._reactor.querySubs.flush();
+    unsub();
+  });
+}
+
+function warmNewestRoute(userId?: string) {
+  const newestRouteQuery = newestPageQuery(userId, { first: PAGE_SIZE });
+  const unsub = db.core.subscribeQuery(newestRouteQuery, async () => {
+    await db.core._reactor.querySubs.flush();
+    unsub();
+  });
+}
+
+function warmTopRoute(userId?: string) {
+  const topRouteQuery = topPageQuery(userId);
+  const unsub = db.core.subscribeQuery(topRouteQuery, async () => {
+    await db.core._reactor.querySubs.flush();
+    unsub();
+  });
+}
+
+function HomeBrowseLinks({
+  warmRoute,
+}: {
+  warmRoute: (href: '/best' | '/newest' | '/top') => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 sm:gap-4">
+      <Link
+        href="/best"
+        className={browseLinkClass}
+        onMouseEnter={() => warmRoute('/best')}
+        onTouchStart={() => warmRoute('/best')}
+        onFocus={() => warmRoute('/best')}
+      >
+        Best
+      </Link>
+      <Link
+        href="/newest"
+        className={browseLinkClass}
+        onMouseEnter={() => warmRoute('/newest')}
+        onTouchStart={() => warmRoute('/newest')}
+        onFocus={() => warmRoute('/newest')}
+      >
+        Newest
+      </Link>
+      <Link
+        href="/top"
+        className={browseLinkClass}
+        onMouseEnter={() => warmRoute('/top')}
+        onTouchStart={() => warmRoute('/top')}
+        onFocus={() => warmRoute('/top')}
+      >
+        Top
+      </Link>
+    </div>
   );
 }
 
@@ -55,7 +139,7 @@ function NewGallerySection({
       thumbnail: {},
       author: {},
       remixOf: { author: {} },
-      votes: {},
+      ...viewerVotesQuery(userId),
       $: {
         order: { createdAt: 'desc' as const },
         first: NEW_DESKTOP_PREVIEW_COUNT,
@@ -128,7 +212,7 @@ function TopGalleryLoader({
       thumbnail: {},
       author: {},
       remixOf: { author: {} },
-      votes: {},
+      ...viewerVotesQuery(userId),
       $: {
         order: { score: 'desc' as const },
         first: PAGE_SIZE,
@@ -279,6 +363,7 @@ function TopGalleryGrid({
             key={sketchId}
             sketchId={sketchId}
             initialData={sketchMap.get(sketchId)}
+            userId={userId}
             isAdmin={isAdmin}
             playbackSpeed={playbackSpeed}
             showCursor={showCursor}
@@ -304,12 +389,14 @@ function TopGalleryGrid({
 function LiveSketchCard({
   sketchId,
   initialData,
+  userId,
   isAdmin,
   playbackSpeed,
   showCursor,
 }: {
   sketchId: string;
   initialData?: SketchSnapshot;
+  userId?: string;
   isAdmin?: boolean;
   playbackSpeed: number;
   showCursor: boolean;
@@ -326,7 +413,7 @@ function LiveSketchCard({
           thumbnail: {},
           author: {},
           remixOf: { author: {} },
-          votes: {},
+          ...viewerVotesQuery(userId),
           $: { where: { id: sketchId } },
         },
       },
@@ -336,7 +423,7 @@ function LiveSketchCard({
       },
     );
     return unsub;
-  }, [sketchId]);
+  }, [sketchId, userId]);
 
   if (!sketch) return null;
 
@@ -360,7 +447,7 @@ function EmptyState() {
         No sketches yet
       </p>
       <p className="mt-2 text-sm">
-        Click &quot;Create sketch&quot; to create your first one!
+        Click &quot;Create Sketch&quot; to create your first one!
       </p>
     </div>
   );
@@ -430,9 +517,11 @@ function SketchGrid({
 function SectionHeader({
   children,
   href,
+  onWarmHref,
 }: {
   children: React.ReactNode;
   href?: string;
+  onWarmHref?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -443,6 +532,9 @@ function SectionHeader({
         <Link
           href={href}
           className="text-text-tertiary hover:text-text-secondary text-xs font-medium transition-colors sm:text-sm"
+          onMouseEnter={onWarmHref}
+          onTouchStart={onWarmHref}
+          onFocus={onWarmHref}
         >
           See all &rarr;
         </Link>
@@ -464,15 +556,37 @@ function GalleryContent({
   const userSettings = settingsData?.userSettings?.[0];
   const playbackSpeed = userSettings?.playbackSpeed ?? 2;
   const showCursor = userSettings?.showCursor ?? true;
+  const warmedRoutes = useRef<Set<string>>(new Set());
+
+  const warmRoute = useCallback(
+    (href: '/best' | '/newest' | '/top') => {
+      if (warmedRoutes.current.has(href)) return;
+      warmedRoutes.current.add(href);
+
+      if (href === '/best') {
+        warmBestRoute(userId);
+        return;
+      }
+
+      if (href === '/newest') {
+        warmNewestRoute(userId);
+        return;
+      }
+
+      warmTopRoute(userId);
+    },
+    [userId],
+  );
 
   return (
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
       <div className="w-full max-w-4xl space-y-6 px-3 py-3 sm:space-y-10 sm:p-6">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between gap-3">
+          <HomeBrowseLinks warmRoute={warmRoute} />
           <db.SignedIn>
             <Link href="/new" className={createSketchClass}>
-              Create sketch
+              Create Sketch
             </Link>
           </db.SignedIn>
           <db.SignedOut>
@@ -481,7 +595,9 @@ function GalleryContent({
         </div>
 
         <div className="space-y-3 sm:space-y-4">
-          <SectionHeader href="/newest">Fresh off the canvas</SectionHeader>
+          <SectionHeader href="/newest" onWarmHref={() => warmRoute('/newest')}>
+            Fresh off the canvas
+          </SectionHeader>
           <NewGallerySection
             userId={userId}
             isAdmin={isAdmin}
