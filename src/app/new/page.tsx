@@ -268,9 +268,10 @@ function DrawCanvas({
 
       const parentTrimStart = parent.trimStart ?? 0;
       const parentTrimEnd = parent.trimEnd ?? parent.durationMs ?? Infinity;
-      const trimmedEvents = rawEvents.filter(
-        (evt) => evt.t >= parentTrimStart && evt.t <= parentTrimEnd,
-      );
+      // Include all events up to trimEnd — shapes drawn before trimStart
+      // are still visible on the canvas at that point and must be included
+      // in the remix snapshot.
+      const trimmedEvents = rawEvents.filter((evt) => evt.t <= parentTrimEnd);
 
       const offsets = buildOffsets(trimmedEvents);
       const deleted = buildDeletedSet(trimmedEvents);
