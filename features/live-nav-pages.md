@@ -20,3 +20,4 @@ Adds direct navigation to the live browsing pages and introduces a live `/top` p
 - Switched `/top` to live client-side pagination over the full sketch list so displayed entries are truly sorted by score, then recency
 - Wired `/top` into the upvote button's optimistic score updates so entries re-order immediately on vote
 - `/top` now animates vote-driven reordering locally with a short FLIP-style transform on the card grid
+- The homepage `Most loved` section now uses the same live sorted query and animated reorder behavior instead of the old fixed-order subscription workaround

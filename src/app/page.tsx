@@ -1,5 +1,6 @@
 'use client';
 
+import { AnimatedTopSketchGrid } from './AnimatedTopSketchGrid';
 import {
   bestPageQuery,
   newestPageQuery,
@@ -7,6 +8,10 @@ import {
 } from '@/lib/browse-queries';
 import { db } from '@/lib/db';
 import { sketchQuery, viewerVotesQuery } from '@/lib/sketch-query';
+import {
+  reconcileOptimisticVotes,
+  useOptimisticVoteScores,
+} from '@/lib/vote-store';
 import Link from 'next/link';
 import { AuthHeader, LoginModal, SketchCard } from './components';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -168,89 +173,6 @@ function NewGallerySection({
   );
 }
 
-// -- "Top" gallery: fixed order, live item updates --
-
-type TopCursor = [string, string, unknown, number];
-type SketchSnapshot = {
-  id: string;
-  createdAt: number;
-  score?: number | null;
-  votes?: { id: string }[];
-  stream?: { id: string; done?: boolean | null };
-  thumbnail?: { url: string };
-  author?: { id?: string; handle?: string | null };
-  duration?: number | null;
-  trimStart?: number | null;
-  trimEnd?: number | null;
-  remixOf?: { author?: { handle?: string | null } } | null;
-};
-type TopPageData = {
-  sketches: SketchSnapshot[];
-  endCursor?: TopCursor;
-  hasNext: boolean;
-};
-
-// Phase 1: renders the grid using useSuspenseQuery (no flash), then signals
-// data to the parent via effect so the parent can swap to TopGalleryGrid
-// (which drops the live subscription).
-function TopGalleryLoader({
-  userId,
-  isAdmin,
-  playbackSpeed,
-  showCursor,
-  onData,
-}: {
-  userId?: string;
-  isAdmin?: boolean;
-  playbackSpeed: number;
-  showCursor: boolean;
-  onData: (data: TopPageData) => void;
-}) {
-  const { data, pageInfo } = db.useSuspenseQuery({
-    sketches: {
-      stream: {},
-      thumbnail: {},
-      author: {},
-      remixOf: { author: {} },
-      ...viewerVotesQuery(userId),
-      $: {
-        order: { score: 'desc' as const },
-        first: PAGE_SIZE,
-      },
-    },
-  });
-
-  const sketches = (data.sketches ?? []).filter(
-    (s) => !s.flagged || s.author?.id === userId,
-  );
-  const endCursor = pageInfo?.sketches?.endCursor as TopCursor | undefined;
-  const hasNext = pageInfo?.sketches?.hasNextPage ?? false;
-
-  // After first commit, hand data to parent so it can unmount this component
-  // (dropping the useSuspenseQuery subscription) and swap in TopGalleryGrid.
-  useEffect(() => {
-    onData({ sketches, endCursor, hasNext });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (sketches.length === 0) return <EmptyState />;
-
-  // Render actual SketchCards (not LiveSketchCard) so there's no null flash.
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-      {sketches.map((sketch) => (
-        <SketchCard
-          key={sketch.id}
-          sketch={sketch}
-          isAdmin={!!isAdmin}
-          playbackSpeed={playbackSpeed}
-          showCursor={showCursor}
-        />
-      ))}
-    </div>
-  );
-}
-
 function TopGallerySection({
   userId,
   isAdmin,
@@ -262,178 +184,51 @@ function TopGallerySection({
   playbackSpeed: number;
   showCursor: boolean;
 }) {
-  const [initialData, setInitialData] = useState<TopPageData | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const optimisticScores = useOptimisticVoteScores();
 
-  // Phase 1: loader does useSuspenseQuery + renders grid + signals data via effect.
-  // Phase 2: loader unmounts (drops subscription), TopGalleryGrid takes over.
-  if (!initialData) {
-    return (
-      <TopGalleryLoader
-        userId={userId}
-        isAdmin={isAdmin}
-        playbackSpeed={playbackSpeed}
-        showCursor={showCursor}
-        onData={setInitialData}
-      />
-    );
-  }
+  const { data } = db.useSuspenseQuery(topPageQuery(userId));
 
-  return (
-    <TopGalleryGrid
-      initialData={initialData}
-      userId={userId}
-      isAdmin={isAdmin}
-      playbackSpeed={playbackSpeed}
-      showCursor={showCursor}
-    />
-  );
-}
+  useEffect(() => {
+    reconcileOptimisticVotes(data.sketches ?? []);
+  }, [data.sketches]);
 
-function TopGalleryGrid({
-  initialData,
-  userId,
-  isAdmin,
-  playbackSpeed,
-  showCursor,
-}: {
-  initialData: TopPageData;
-  userId?: string;
-  isAdmin?: boolean;
-  playbackSpeed: number;
-  showCursor: boolean;
-}) {
-  const [firstPageSketches] = useState(initialData.sketches);
-  const [extraIds, setExtraIds] = useState<string[]>([]);
-  const [hasMore, setHasMore] = useState(initialData.hasNext);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const cursorRef = useRef<TopCursor | undefined>(initialData.endCursor);
+  const sketches = [...(data.sketches ?? [])]
+    .filter((s) => !s.flagged || s.author?.id === userId)
+    .sort((a, b) => {
+      const scoreDelta =
+        (optimisticScores[b.id]?.score ?? b.score ?? 0) -
+        (optimisticScores[a.id]?.score ?? a.score ?? 0);
+      if (scoreDelta !== 0) return scoreDelta;
+      return b.createdAt - a.createdAt;
+    })
+    .slice(0, visibleCount);
 
-  const firstPageIds = firstPageSketches.map((s) => s.id);
-  const sketchMap = new Map(firstPageSketches.map((s) => [s.id, s]));
-  const allIds = [...firstPageIds, ...extraIds];
+  const hasMore = (data.sketches?.length ?? 0) > visibleCount;
 
-  const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    let captured = false;
-    const unsub = db.core.subscribeQuery(
-      {
-        sketches: {
-          author: {},
-          $: {
-            order: { score: 'desc' as const },
-            first: PAGE_SIZE,
-            after: cursorRef.current,
-          },
-        },
-      },
-      (resp) => {
-        if (captured) return;
-        captured = true;
-        const ids = (resp.data?.sketches ?? [])
-          .filter(
-            (s: { flagged?: boolean; author?: { id?: string } }) =>
-              !s.flagged || s.author?.id === userId,
-          )
-          .map((s: { id: string }) => s.id);
-        const pi = resp.pageInfo?.sketches as
-          | { hasNextPage?: boolean; endCursor?: TopCursor }
-          | undefined;
-        setExtraIds((prev) => {
-          const seen = new Set([...firstPageIds, ...prev]);
-          return [...prev, ...ids.filter((id: string) => !seen.has(id))];
-        });
-        cursorRef.current = pi?.endCursor;
-        setHasMore(pi?.hasNextPage ?? false);
-        setLoadingMore(false);
-        unsub();
-      },
-    );
-  }, [userId, loadingMore, hasMore, firstPageIds]);
-
-  if (allIds.length === 0) {
+  if (sketches.length === 0) {
     return <EmptyState />;
   }
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
-        {allIds.map((sketchId) => (
-          <LiveSketchCard
-            key={sketchId}
-            sketchId={sketchId}
-            initialData={sketchMap.get(sketchId)}
-            userId={userId}
-            isAdmin={isAdmin}
-            playbackSpeed={playbackSpeed}
-            showCursor={showCursor}
-          />
-        ))}
-      </div>
+      <AnimatedTopSketchGrid
+        sketches={sketches}
+        isAdmin={!!isAdmin}
+        playbackSpeed={playbackSpeed}
+        showCursor={showCursor}
+      />
       {hasMore && (
         <div className="flex justify-center pb-4">
           <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-5 py-1.5 text-sm font-medium transition-all active:scale-95 disabled:cursor-default disabled:opacity-50"
+            onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
+            className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-5 py-1.5 text-sm font-medium transition-all active:scale-95"
           >
-            {loadingMore ? 'Loading...' : 'Load more'}
+            Load more
           </button>
         </div>
       )}
     </>
-  );
-}
-
-// Subscribes to a single sketch by ID via db.core.subscribeQuery
-function LiveSketchCard({
-  sketchId,
-  initialData,
-  userId,
-  isAdmin,
-  playbackSpeed,
-  showCursor,
-}: {
-  sketchId: string;
-  initialData?: SketchSnapshot;
-  userId?: string;
-  isAdmin?: boolean;
-  playbackSpeed: number;
-  showCursor: boolean;
-}) {
-  const [sketch, setSketch] = useState<SketchSnapshot | null>(
-    initialData ?? null,
-  );
-
-  useEffect(() => {
-    const unsub = db.core.subscribeQuery(
-      {
-        sketches: {
-          stream: {},
-          thumbnail: {},
-          author: {},
-          remixOf: { author: {} },
-          ...viewerVotesQuery(userId),
-          $: { where: { id: sketchId } },
-        },
-      },
-      (resp) => {
-        const s = resp.data?.sketches?.[0];
-        if (s) setSketch(s);
-      },
-    );
-    return unsub;
-  }, [sketchId, userId]);
-
-  if (!sketch) return null;
-
-  return (
-    <SketchCard
-      sketch={sketch}
-      isAdmin={!!isAdmin}
-      playbackSpeed={playbackSpeed}
-      showCursor={showCursor}
-    />
   );
 }
 
