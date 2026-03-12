@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { viewerVotesQuery } from '@/lib/sketch-query';
 import Link from 'next/link';
 import { use } from 'react';
+import { BrowsePageHeader } from '../../BrowsePageHeader';
 import { AuthHeader, ErrorMsg, SketchCard } from '../../components';
 
 function SignedInUserGallery({ handle }: { handle: string }) {
@@ -49,39 +50,18 @@ function UserGalleryContent({
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
       <div className="w-full max-w-4xl space-y-4 px-3 py-3 sm:space-y-8 sm:p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
+        <BrowsePageHeader
+          label="Artist"
+          title={`@${handle}`}
+          action={
             <Link
-              href="/"
-              className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 py-1 text-sm transition-colors"
+              href="/new"
+              className="bg-accent text-accent-text shadow-border hover:bg-accent-hover inline-flex rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-              All
+              Create Sketch
             </Link>
-            <h2 className="text-text-secondary text-sm sm:text-lg">
-              Sketches by{' '}
-              <span className="text-text-primary font-semibold">@{handle}</span>
-            </h2>
-          </div>
-          <Link
-            href="/new"
-            className="bg-accent text-accent-text shadow-border hover:bg-accent-hover rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base"
-          >
-            Create Sketch
-          </Link>
-        </div>
+          }
+        />
 
         {sketches.length === 0 ? (
           <div className="text-text-tertiary py-12 text-center sm:py-20">

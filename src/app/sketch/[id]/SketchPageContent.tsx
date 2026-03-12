@@ -323,6 +323,7 @@ export function SketchPageContent({
         score={sketch.score ?? 0}
         votes={sketch.votes ?? []}
         authorId={sketch.author?.id}
+        authorHandle={sketch.author?.handle ?? null}
         viewerUserId={user?.id}
       />
       {sketch.remixOf && (
@@ -494,6 +495,7 @@ function ReplayCanvas({
   score,
   votes,
   authorId,
+  authorHandle,
   viewerUserId,
 }: {
   sketchId: string;
@@ -520,6 +522,7 @@ function ReplayCanvas({
   score: number;
   votes: { id: string }[];
   authorId?: string;
+  authorHandle?: string | null;
   viewerUserId?: string;
 }) {
   const router = useRouter();
@@ -1122,12 +1125,6 @@ function ReplayCanvas({
     <div className="w-full max-w-4xl space-y-2 px-2 py-2 sm:space-y-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => router.push('/')}
-            className="text-text-tertiary hover:text-text-secondary py-1 text-sm font-medium transition-colors"
-          >
-            Back
-          </button>
           {canDelete && (
             <button
               onClick={() => setConfirmDelete(true)}
@@ -1149,6 +1146,14 @@ function ReplayCanvas({
               )}
             </Link>
           )}
+          {authorHandle ? (
+            <Link
+              href={`/user/${encodeURIComponent(authorHandle)}`}
+              className="text-text-tertiary hover:text-text-secondary text-sm transition-colors"
+            >
+              <span className="font-medium">@{authorHandle}</span>
+            </Link>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <UpvoteButton

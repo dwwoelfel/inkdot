@@ -1,15 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 export function BrowsePageHeader({
   label,
   title,
   description,
+  action,
 }: {
   label: string;
   title: string;
   description?: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="space-y-3">
@@ -33,17 +36,22 @@ export function BrowsePageHeader({
         <span>Home</span>
       </Link>
       <div className="border-border bg-surface-secondary/70 rounded-2xl border px-4 py-3 shadow-sm sm:px-5 sm:py-4">
-        <div className="text-text-tertiary text-[11px] font-semibold tracking-[0.18em] uppercase sm:text-xs">
-          {label}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <div className="text-text-tertiary text-[11px] font-semibold tracking-[0.18em] uppercase sm:text-xs">
+              {label}
+            </div>
+            <h1 className="text-text-primary mt-1 text-lg font-semibold tracking-tight sm:text-xl">
+              {title}
+            </h1>
+            {description && (
+              <p className="text-text-secondary mt-1 text-xs leading-relaxed sm:text-sm">
+                {description}
+              </p>
+            )}
+          </div>
+          {action && <div className="sm:shrink-0">{action}</div>}
         </div>
-        <h1 className="text-text-primary mt-1 text-lg font-semibold tracking-tight sm:text-xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="text-text-secondary mt-1 text-xs leading-relaxed sm:text-sm">
-            {description}
-          </p>
-        )}
       </div>
     </div>
   );

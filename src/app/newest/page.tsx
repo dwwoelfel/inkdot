@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import { BrowsePageHeader } from '../BrowsePageHeader';
 import { AuthHeader } from '../components';
+import Link from 'next/link';
 import { usePrependAnimatedSketches } from '../usePrependAnimatedSketches';
 
 function SignedInNewestGallery() {
@@ -74,7 +75,18 @@ function NewestGalleryContent({
     <div className="bg-surface text-text-primary flex min-h-[100dvh] flex-col items-center font-sans">
       <AuthHeader />
       <div className="w-full max-w-4xl space-y-4 px-3 py-3 sm:space-y-8 sm:p-6">
-        <BrowsePageHeader label="Live Feed" title="Newest" />
+        <BrowsePageHeader
+          label="Live Feed"
+          title="Newest"
+          action={
+            <Link
+              href="/new"
+              className="bg-accent text-accent-text shadow-border hover:bg-accent-hover inline-flex rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
+            >
+              Create Sketch
+            </Link>
+          }
+        />
 
         {sketches.length === 0 && !hasPrev ? (
           <div className="text-text-tertiary py-12 text-center sm:py-20">
