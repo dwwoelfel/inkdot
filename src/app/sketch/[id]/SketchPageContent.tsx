@@ -390,7 +390,7 @@ function NextUpOverlay({
         ) : null}
         {/* Frosted glass pill */}
         <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/40 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-white uppercase backdrop-blur-md sm:text-[10px]">
-          {preview.authorHandle ? <>New #1 · @{preview.authorHandle}</> : 'New #1'}
+          {'New #1'}
         </span>
       </div>
       {/* Play icon centered over entire card on hover */}

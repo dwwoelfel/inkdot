@@ -3,13 +3,8 @@ type VoteQueryUser = {
   type?: string | null;
 };
 
-export function viewerVotesQuery(user?: VoteQueryUser | string | null) {
-  const userId =
-    typeof user === 'string'
-      ? user
-      : user?.type === 'guest'
-        ? undefined
-        : user?.id;
+export function viewerVotesQuery(user?: VoteQueryUser | null) {
+  const userId = user?.type === 'guest' ? undefined : user?.id;
 
   if (!userId) {
     return {};
@@ -24,10 +19,7 @@ export function viewerVotesQuery(user?: VoteQueryUser | string | null) {
   } as const;
 }
 
-export function sketchQuery(
-  sketchId: string,
-  user?: VoteQueryUser | string | null,
-) {
+export function sketchQuery(sketchId: string, user?: VoteQueryUser | null) {
   return {
     sketches: {
       stream: {},

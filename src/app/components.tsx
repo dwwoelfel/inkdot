@@ -490,6 +490,7 @@ function HeaderMenu() {
             mySketchesHref={
               handle ? `/user/${encodeURIComponent(handle)}` : undefined
             }
+            upvotedHref={user?.email ? '/upvoted' : undefined}
           />
           <db.SignedIn>
             <div className="border-border my-1 border-t" />
@@ -504,10 +505,14 @@ function HeaderMenu() {
 function BrowseMenuItems({
   onNavigate,
   mySketchesHref,
+  upvotedHref,
 }: {
   onNavigate: (href: string) => void;
   mySketchesHref?: string;
+  upvotedHref?: string;
 }) {
+  const iconSlotClass = 'inline-block h-[14px] w-[14px] shrink-0';
+
   return (
     <>
       <button
@@ -521,38 +526,14 @@ function BrowseMenuItems({
         onClick={() => onNavigate('/newest')}
         className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M12 5v14" />
-          <path d="M19 12H5" />
-        </svg>
+        <span aria-hidden="true" className={iconSlotClass} />
         Newest
       </button>
       <button
         onClick={() => onNavigate('/top')}
         className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M6 18L12 6l6 12" />
-          <path d="M9 14h6" />
-        </svg>
+        <span aria-hidden="true" className={iconSlotClass} />
         Top
       </button>
       {mySketchesHref && (
@@ -576,6 +557,15 @@ function BrowseMenuItems({
             <rect x="14" y="14" width="7" height="7" />
           </svg>
           My sketches
+        </button>
+      )}
+      {upvotedHref && (
+        <button
+          onClick={() => onNavigate(upvotedHref)}
+          className="text-text-secondary hover:bg-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors"
+        >
+          <span aria-hidden="true" className={iconSlotClass} />
+          Upvoted
         </button>
       )}
     </>
