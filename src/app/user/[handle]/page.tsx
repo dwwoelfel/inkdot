@@ -53,9 +53,22 @@ function UserGalleryContent({
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              className="text-text-tertiary hover:text-text-secondary text-xs sm:text-sm"
+              className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 py-1 text-sm transition-colors"
             >
-              &larr; All
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              All
             </Link>
             <h2 className="text-text-secondary text-sm sm:text-lg">
               Sketches by{' '}
@@ -64,7 +77,7 @@ function UserGalleryContent({
           </div>
           <Link
             href="/new"
-            className="bg-accent text-accent-text shadow-border hover:bg-accent-hover rounded-lg px-3 py-1.5 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base"
+            className="bg-accent text-accent-text shadow-border hover:bg-accent-hover rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base"
           >
             Create Sketch
           </Link>

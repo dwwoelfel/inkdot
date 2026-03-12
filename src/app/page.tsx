@@ -25,9 +25,9 @@ const NEW_DESKTOP_PREVIEW_COUNT = 4;
 const TOP_PREVIEW_COUNT = DEFAULT_PAGE_SIZE;
 
 const createSketchClass =
-  'rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-text shadow-md shadow-border transition-all hover:bg-accent-hover hover:shadow-lg hover:shadow-slate-400 active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base';
+  'rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-text shadow-md shadow-border transition-all hover:bg-accent-hover hover:shadow-lg hover:shadow-slate-400 active:scale-95 sm:rounded-xl sm:px-5 sm:py-2 sm:text-base';
 const browseLinkClass =
-  'text-text-tertiary hover:text-text-secondary text-xs font-medium transition-colors sm:text-sm';
+  'text-text-tertiary hover:text-text-secondary text-sm font-medium transition-colors py-1';
 
 function CreateSketchButton() {
   const [showLogin, setShowLogin] = useState(false);
@@ -268,12 +268,25 @@ function SectionHeader({
       {href && (
         <Link
           href={href}
-          className="text-text-tertiary hover:text-text-secondary text-xs font-medium transition-colors sm:text-sm"
+          className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 py-1 text-sm font-medium transition-colors"
           onMouseEnter={onWarmHref}
           onTouchStart={onWarmHref}
           onFocus={onWarmHref}
         >
-          See all &rarr;
+          See all
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
         </Link>
       )}
     </div>

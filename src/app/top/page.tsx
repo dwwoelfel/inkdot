@@ -123,14 +123,14 @@ function Pagination({
       <button
         onClick={onPrev}
         disabled={!hasPrev}
-        className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-4 py-1.5 text-sm font-medium transition-all active:scale-95 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
+        className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-5 py-2 text-sm font-medium transition-all active:scale-95 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
       >
         Previous
       </button>
       <button
         onClick={onNext}
         disabled={!hasNext}
-        className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-4 py-1.5 text-sm font-medium transition-all active:scale-95 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
+        className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-5 py-2 text-sm font-medium transition-all active:scale-95 disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent"
       >
         Next
       </button>

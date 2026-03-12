@@ -1124,14 +1124,14 @@ function ReplayCanvas({
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => router.push('/')}
-            className="text-text-tertiary hover:text-text-secondary text-sm font-medium transition-colors"
+            className="text-text-tertiary hover:text-text-secondary py-1 text-sm font-medium transition-colors"
           >
             Back
           </button>
           {canDelete && (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="text-text-tertiary text-xs font-medium transition-colors hover:text-red-500 sm:text-sm"
+              className="text-text-tertiary py-1 text-sm font-medium transition-colors hover:text-red-500"
             >
               Delete
             </button>
@@ -1139,7 +1139,7 @@ function ReplayCanvas({
           {remixOf && (
             <Link
               href={`/sketch/${remixOf.id}`}
-              className="text-text-tertiary hover:text-text-secondary text-xs transition-colors"
+              className="text-text-tertiary hover:text-text-secondary text-sm transition-colors"
             >
               Remix of{' '}
               {remixOf.author?.handle ? (
@@ -1159,13 +1159,13 @@ function ReplayCanvas({
           />
           <button
             onClick={() => router.push(`/new?remix=${sketchId}`)}
-            className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-3 py-1 text-xs font-semibold transition-all active:scale-95 sm:rounded-xl sm:px-4 sm:py-1.5 sm:text-sm"
+            className="border-border-strong text-text-secondary hover:bg-hover cursor-pointer rounded-lg border px-4 py-2 text-sm font-semibold transition-all active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
           >
             Remix
           </button>
           <button
             onClick={() => router.push('/new')}
-            className="bg-accent text-accent-text shadow-border hover:bg-accent-hover cursor-pointer rounded-lg px-3 py-1 text-xs font-semibold shadow-md transition-all active:scale-95 sm:rounded-xl sm:px-4 sm:py-1.5 sm:text-sm"
+            className="bg-accent text-accent-text shadow-border hover:bg-accent-hover cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
           >
             New sketch
           </button>

@@ -462,7 +462,7 @@ function HeaderMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-text-tertiary hover:text-text-primary hover:bg-hover flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors sm:h-8 sm:w-8"
+        className="text-text-tertiary hover:text-text-primary hover:bg-hover flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors sm:h-8 sm:w-8"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="2" />
@@ -656,7 +656,7 @@ export function AuthHeader() {
           <db.SignedOut>
             <button
               onClick={() => setShowLogin(true)}
-              className="bg-accent text-accent-text hover:bg-accent-hover cursor-pointer rounded-lg px-3 py-1 text-xs font-semibold transition-colors sm:rounded-xl sm:px-4 sm:py-1.5 sm:text-sm"
+              className="bg-accent text-accent-text hover:bg-accent-hover cursor-pointer rounded-lg px-4 py-2 text-sm font-semibold transition-colors sm:rounded-xl sm:px-5 sm:py-2"
             >
               Sign in
             </button>
@@ -707,7 +707,7 @@ function SignedInHeader() {
       {isGuest && !upgrading && (
         <button
           onClick={() => setUpgrading(true)}
-          className="border-border-strong bg-surface text-text-primary hover:bg-hover cursor-pointer rounded-lg border px-3 py-1 text-xs font-semibold transition-all active:scale-95 sm:rounded-xl sm:px-4 sm:py-1.5 sm:text-sm"
+          className="border-border-strong bg-surface text-text-primary hover:bg-hover cursor-pointer rounded-lg border px-4 py-2 text-sm font-semibold transition-all active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
         >
           Save account
         </button>
@@ -2712,7 +2712,7 @@ export function UpvoteButton({
                 }
               : handleClick
           }
-          className={`flex items-center gap-1 rounded-md bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums transition-colors sm:text-xs ${isOwnSketch ? '!cursor-default' : 'cursor-pointer hover:bg-black/70'}`}
+          className={`flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white tabular-nums transition-colors ${isOwnSketch ? '!cursor-default' : 'cursor-pointer hover:bg-black/70'}`}
         >
           <PencilIcon size={12} filled={displayVoted} />
           {displayScore > 0 && <AnimatedNumber value={displayScore} />}
@@ -2742,7 +2742,7 @@ export function UpvoteButton({
               }
             : handleClick
         }
-        className={`border-border-strong flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold tabular-nums transition-all sm:rounded-xl sm:px-4 sm:py-1.5 sm:text-sm ${
+        className={`border-border-strong flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-semibold tabular-nums transition-all sm:rounded-xl sm:px-5 sm:py-2 ${
           displayVoted ? 'text-text-primary' : 'text-text-secondary'
         } ${
           isOwnSketch

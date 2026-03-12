@@ -43,9 +43,22 @@ export default function TemplatesDebugPage() {
           <div>
             <Link
               href="/"
-              className="text-text-tertiary hover:text-text-secondary text-sm"
+              className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 py-1 text-sm transition-colors"
             >
-              &larr; Back
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              Back
             </Link>
             <h1 className="text-text-primary mt-1 text-2xl font-bold">
               Templates ({TEMPLATES.length})

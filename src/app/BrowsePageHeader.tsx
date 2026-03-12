@@ -15,9 +15,21 @@ export function BrowsePageHeader({
     <div className="space-y-3">
       <Link
         href="/"
-        className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 text-xs transition-colors sm:text-sm"
+        className="text-text-tertiary hover:text-text-secondary inline-flex items-center gap-1 py-1 text-sm transition-colors"
       >
-        <span aria-hidden="true">&larr;</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0"
+        >
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
         <span>Home</span>
       </Link>
       <div className="border-border bg-surface-secondary/70 rounded-2xl border px-4 py-3 shadow-sm sm:px-5 sm:py-4">
