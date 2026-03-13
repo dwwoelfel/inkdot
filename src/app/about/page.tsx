@@ -51,11 +51,45 @@ export default function AboutPage() {
               Instant streams never expire, so you can stream after they&apos;re
               done to replay sketches.
             </p>
+            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+              They were built to stream llm-generated responses to clients.
+              There are a few examples of a{' '}
+              <a
+                href="https://github.com/instantdb/instant/tree/main/examples/vercel-ai-sdk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-text-primary decoration-border-strong hover:decoration-text-primary font-medium underline underline-offset-2"
+              >
+                one-shot AI app builder
+              </a>{' '}
+              and an{' '}
+              <a
+                href="https://github.com/instantdb/instant/tree/main/examples/vercel-ai-sdk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-text-primary decoration-border-strong hover:decoration-text-primary font-medium underline underline-offset-2"
+              >
+                AI chat app
+              </a>{' '}
+              if you want to see how to use streams in your llm-powered apps.
+              Instant also publishes a{' '}
+              <a
+                href="https://npmjs.com/package/@instantdb/resumable-stream"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-text-primary decoration-border-strong hover:decoration-text-primary font-medium underline underline-offset-2"
+              >
+                resumable-stream
+              </a>{' '}
+              package that is a drop-in replacement for Vercel&apos;s
+              resumable-streams package. Your streams never expire and you
+              don&apos;t need to add Redis to your app.
+            </p>
           </section>
 
           <section className="space-y-2">
             <h2 className="text-text-primary text-base font-semibold sm:text-lg">
-              Instant Streams
+              How Instant Streams Work
             </h2>
             <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
               The writer pushes data to Instant over a websocket and Instant
@@ -77,23 +111,8 @@ export default function AboutPage() {
               but allows the streams to grow beyond what could safely fit in
               memory.
             </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-text-primary text-base font-semibold sm:text-lg">
-              How it works
-            </h2>
             <StreamsDiagram />
           </section>
-
-          <div className="flex items-center gap-3 pt-2 pb-8">
-            <Link
-              href="/new"
-              className="bg-accent text-accent-text shadow-border hover:bg-accent-hover rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition-all hover:shadow-lg active:scale-95 sm:rounded-xl sm:px-5 sm:py-2"
-            >
-              Create a Sketch
-            </Link>
-          </div>
         </div>
       </div>
     </div>
