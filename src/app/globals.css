@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-:root {
+:root,
+:root.light {
   --color-surface: #ffffff;
   --color-surface-secondary: #f8fafc;
   --color-text-primary: #1e293b;
@@ -12,9 +13,10 @@
   --color-accent-text: #ffffff;
   --color-accent-hover: #1e293b;
   --color-hover: #f1f5f9;
+  color-scheme: light;
 }
 
-.dark {
+:root.dark {
   --color-surface: #18181b;
   --color-surface-secondary: #27272a;
   --color-text-primary: #e4e4e7;
@@ -26,6 +28,24 @@
   --color-accent-text: #18181b;
   --color-accent-hover: #e4e4e7;
   --color-hover: #27272a;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    --color-surface: #18181b;
+    --color-surface-secondary: #27272a;
+    --color-text-primary: #e4e4e7;
+    --color-text-secondary: #a1a1aa;
+    --color-text-tertiary: #71717a;
+    --color-border: #3f3f46;
+    --color-border-strong: #52525b;
+    --color-accent: #d4d4d8;
+    --color-accent-text: #18181b;
+    --color-accent-hover: #e4e4e7;
+    --color-hover: #27272a;
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
@@ -43,9 +63,13 @@
   --font-sans: var(--font-archivo);
 }
 
+html,
 body {
   background: var(--color-surface);
   color: var(--color-text-primary);
+}
+
+body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -85,4 +109,3 @@ a,
     stroke-dashoffset: 0;
   }
 }
-

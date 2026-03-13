@@ -36,13 +36,13 @@ function getSystemTheme(): ResolvedTheme {
     : 'light';
 }
 
-function applyTheme(resolved: ResolvedTheme) {
+function applyTheme(theme: Theme, resolved: ResolvedTheme) {
   const root = document.documentElement;
-  if (resolved === 'dark') {
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
+  root.classList.remove('light', 'dark');
+  if (theme !== 'system') {
+    root.classList.add(theme);
   }
+  root.style.colorScheme = resolved;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -85,7 +85,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Apply theme to DOM whenever resolved theme changes
   useEffect(() => {
-    applyTheme(resolvedTheme);
+    applyTheme(theme, resolvedTheme);
     // Keep localStorage in sync as a cache for the anti-flash script
     localStorage.setItem('theme', theme);
   }, [resolvedTheme, theme]);
