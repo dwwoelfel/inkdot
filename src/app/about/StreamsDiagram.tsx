@@ -193,6 +193,12 @@ function ParticleSprite({
   };
 }) {
   const ref = useRef<SVGCircleElement | null>(null);
+  const particleColors = [
+    'var(--diagram-particle-1)',
+    'var(--diagram-particle-2)',
+    'var(--diagram-particle-3)',
+    'var(--diagram-particle-4)',
+  ];
 
   useEffect(() => {
     const node = ref.current;
@@ -242,7 +248,7 @@ function ParticleSprite({
       fill={
         particle.dim
           ? C.edgeDim
-          : ['#5b8a9a', '#7a9a82', '#a0896c', '#8b7ea6'][particle.n % 4]
+          : particleColors[particle.n % particleColors.length]
       }
       opacity={particle.dim ? 0.3 : 0.9}
       filter={particle.dim ? undefined : 'url(#particle-glow)'}
@@ -372,6 +378,19 @@ export function StreamsDiagram() {
 
   const activeNodeSet = new Set(step.activeNodes);
   const dimNodeSet = new Set(step.dimNodes ?? []);
+  const dimEdgeKeySet = useMemo(
+    () =>
+      new Set(
+        [
+          ...step.activeEdges.filter((edge) => edge.dim),
+          ...(step.dimEdges ?? []),
+        ].map((edge) => edgeKey(edge)),
+      ),
+    [step.activeEdges, step.dimEdges],
+  );
+  const allServersDim = ['instant1', 'instant2', 'instant3'].every((id) =>
+    dimNodeSet.has(id),
+  );
   const allEdges = useMemo(
     () => [
       ...visibleActiveEdges
@@ -404,7 +423,7 @@ export function StreamsDiagram() {
   );
 
   return (
-    <div className="bg-surface mx-auto max-w-lg overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/[0.06]">
+    <div className="bg-surface ring-border/70 mx-auto max-w-lg overflow-hidden rounded-2xl shadow-sm ring-1">
       {/* SVG area */}
       <div className="relative overflow-x-auto px-2 pt-3 pb-1">
         <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full">
@@ -467,8 +486,8 @@ export function StreamsDiagram() {
             y={10}
             textAnchor="middle"
             className="pointer-events-none text-[9px] font-semibold select-none"
-            fill={C.navy}
-            opacity={1}
+            fill={allServersDim ? C.edgeDim : C.navy}
+            opacity={allServersDim ? 0.6 : 1}
           >
             Servers
           </text>
@@ -485,7 +504,19 @@ export function StreamsDiagram() {
 
           {/* Particles (behind nodes so they disappear into icons) */}
           {particles.map((p) => {
-            return <ParticleSprite key={p.id} particle={p} />;
+            return (
+              <ParticleSprite
+                key={p.id}
+                particle={{
+                  ...p,
+                  dim:
+                    p.dim ||
+                    dimEdgeKeySet.has(p.edgeKey) ||
+                    dimNodeSet.has(p.from) ||
+                    dimNodeSet.has(p.to),
+                }}
+              />
+            );
           })}
 
           {/* Nodes */}
@@ -519,7 +550,7 @@ export function StreamsDiagram() {
       </div>
 
       {/* Controls + description */}
-      <div className="border-t border-black/[0.06] px-4 py-3 sm:px-5">
+      <div className="border-border border-t px-4 py-3 sm:px-5">
         {/* Step indicator bar */}
         <div className="mb-3 flex items-center gap-1.5">
           {STEPS.map((s, i) => (

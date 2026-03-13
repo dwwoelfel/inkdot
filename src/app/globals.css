@@ -13,6 +13,17 @@
   --color-accent-text: #ffffff;
   --color-accent-hover: #1e293b;
   --color-hover: #f1f5f9;
+  --diagram-client: #475569;
+  --diagram-server: #334155;
+  --diagram-storage: #92400e;
+  --diagram-edge: #64748b;
+  --diagram-edge-dim: #cbd5e1;
+  --diagram-detail-filled: rgba(255, 255, 255, 0.58);
+  --diagram-led-active: #34d399;
+  --diagram-particle-1: #2b6cb0;
+  --diagram-particle-2: #2f855a;
+  --diagram-particle-3: #b7791f;
+  --diagram-particle-4: #b83280;
   color-scheme: light;
 }
 
@@ -28,6 +39,17 @@
   --color-accent-text: #18181b;
   --color-accent-hover: #e4e4e7;
   --color-hover: #27272a;
+  --diagram-client: #d4d4d8;
+  --diagram-server: #f4f4f5;
+  --diagram-storage: #f0b36d;
+  --diagram-edge: #a1a1aa;
+  --diagram-edge-dim: #52525b;
+  --diagram-detail-filled: rgba(24, 24, 27, 0.72);
+  --diagram-led-active: #10b981;
+  --diagram-particle-1: #7dd3fc;
+  --diagram-particle-2: #86efac;
+  --diagram-particle-3: #fcd34d;
+  --diagram-particle-4: #f9a8d4;
   color-scheme: dark;
 }
 
@@ -44,6 +66,17 @@
     --color-accent-text: #18181b;
     --color-accent-hover: #e4e4e7;
     --color-hover: #27272a;
+    --diagram-client: #d4d4d8;
+    --diagram-server: #f4f4f5;
+    --diagram-storage: #f0b36d;
+    --diagram-edge: #a1a1aa;
+    --diagram-edge-dim: #52525b;
+    --diagram-detail-filled: rgba(24, 24, 27, 0.72);
+    --diagram-led-active: #10b981;
+    --diagram-particle-1: #7dd3fc;
+    --diagram-particle-2: #86efac;
+    --diagram-particle-3: #fcd34d;
+    --diagram-particle-4: #f9a8d4;
     color-scheme: dark;
   }
 }

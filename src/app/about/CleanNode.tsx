@@ -155,7 +155,7 @@ export function CleanNode({
   const detailColor = dim
     ? C.edgeDim
     : filled
-      ? 'rgba(255,255,255,0.5)'
+      ? 'var(--diagram-detail-filled)'
       : node.color;
 
   if (node.shape === 'circle') {
@@ -186,7 +186,9 @@ export function CleanNode({
         />
         <path
           d={bucketD}
-          fill={dim ? '#fff' : filled ? '#fff' : node.color}
+          fill={
+            dim ? '#fff' : filled ? 'var(--diagram-detail-filled)' : node.color
+          }
           transform="translate(7,6)"
         />
       </g>
@@ -253,7 +255,7 @@ export function CleanNode({
                   ? C.edgeDim
                   : filled
                     ? i === 0
-                      ? '#34d399'
+                      ? 'var(--diagram-led-active)'
                       : detailColor
                     : detailColor
               }

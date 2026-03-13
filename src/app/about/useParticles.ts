@@ -36,6 +36,7 @@ type ActiveStreamEdge = SimEdge & {
 type ParticleInstance = {
   id: number;
   edgeKey: string;
+  from: string;
   geo: EdgeGeo;
   startProgress: number;
   endProgress: number;
@@ -49,6 +50,9 @@ type ParticleInstance = {
 
 export type AnimatedParticleRender = {
   id: number;
+  edgeKey: string;
+  from: string;
+  to: string;
   points: Array<{ x: number; y: number }>;
   size: number;
   n: number;
@@ -109,6 +113,9 @@ function buildParticleMotion(p: ParticleInstance): AnimatedParticleRender {
 
   return {
     id: p.id,
+    edgeKey: p.edgeKey,
+    from: p.from,
+    to: p.to,
     points,
     size: p.size,
     n: p.n,
@@ -351,6 +358,7 @@ export function useParticles(edges: EdgeDef[], stepIdx: number) {
             particlesToSpawn.push({
               id: nextParticleIdRef.current++,
               edgeKey: se.key,
+              from: se.from,
               geo: se.geo,
               startProgress: -se.undershoot,
               endProgress: se.overshoot,
@@ -369,6 +377,7 @@ export function useParticles(edges: EdgeDef[], stepIdx: number) {
               particlesToSpawn.push({
                 id: nextParticleIdRef.current++,
                 edgeKey: se.key,
+                from: se.from,
                 geo: se.geo,
                 startProgress: -se.undershoot - i * PARTICLE_STAGGER_PROGRESS,
                 endProgress: se.overshoot,

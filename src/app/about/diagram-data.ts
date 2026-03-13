@@ -4,11 +4,11 @@ export const SVG_W = 380;
 export const SVG_H = 200;
 
 export const C = {
-  client: '#475569',
-  navy: '#334155',
-  storage: '#92400e',
-  edge: '#64748b',
-  edgeDim: '#cbd5e1',
+  client: 'var(--diagram-client)',
+  navy: 'var(--diagram-server)',
+  storage: 'var(--diagram-storage)',
+  edge: 'var(--diagram-edge)',
+  edgeDim: 'var(--diagram-edge-dim)',
 };
 
 export type NodeDef = {
