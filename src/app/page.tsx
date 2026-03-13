@@ -249,7 +249,6 @@ function TopGallerySection({
 function EmptyState() {
   return (
     <div className="text-text-tertiary py-12 text-center sm:py-20">
-      <p className="mb-4 text-5xl sm:text-6xl">🎨</p>
       <p className="text-text-secondary text-base font-medium sm:text-lg">
         No sketches yet
       </p>
