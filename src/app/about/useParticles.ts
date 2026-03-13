@@ -1,29 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type EdgeDef,
   type EdgeGeo,
-  type FlushEdgeRender,
-  type Particle,
   BASE_PARTICLE_SIZE,
   EDGE_GAP,
   GROW_SPEED,
   MAX_PARTICLE_SIZE,
   PARTICLE_PX_SPEED,
+  PARTICLE_STAGGER_PROGRESS,
   SPAWN_INTERVAL,
+  bezierPoint,
   edgeGeo,
   edgeKey,
   edgeLength,
 } from './diagram-data';
 
 type FlushPhase = 'idle' | 'growing' | 'streaming' | 'draining' | 'shrinking';
-
-type FlushState = {
-  phase: FlushPhase;
-  phaseStart: number;
-  simEdge: SimEdge;
-  growDuration: number;
-  threshold: number;
-};
 
 type SimEdge = {
   key: string;
@@ -33,24 +25,61 @@ type SimEdge = {
   undershoot: number;
   overshoot: number;
   progressPerSec: number;
-  isSource: boolean;
   dim: boolean;
   sendOffsetNode?: string;
 };
 
-type LiveParticle = {
+type ActiveStreamEdge = SimEdge & {
+  instanceKey: string;
+};
+
+type ParticleInstance = {
+  id: number;
   edgeKey: string;
   geo: EdgeGeo;
-  progress: number;
+  startProgress: number;
+  endProgress: number;
   progressPerSec: number;
   size: number;
   n: number;
   to: string;
-  overshoot: number;
   count: number;
+  dim?: boolean;
+};
+
+export type AnimatedParticleRender = {
+  id: number;
+  points: Array<{ x: number; y: number }>;
+  size: number;
+  n: number;
+  dim?: boolean;
+  durMs: number;
+};
+
+export type AnimatedFlushEdgeRender = {
+  key: string;
+  geo: EdgeGeo;
+  phase: Exclude<FlushPhase, 'idle'>;
+  values?: string;
+  keyTimes?: string;
+  durMs?: number;
+};
+
+type FlushState = {
+  phase: FlushPhase;
+  simEdge: SimEdge;
+  growDurationMs: number;
+  threshold: number;
+  renderKey: string;
 };
 
 const sizeVar = [0, 0.5, -0.4, 0.9, -0.2, 0.7, 0.1, -0.3, 1.0, 0.3];
+const PARTICLE_MOTION_SAMPLES = 24;
+const EDGE_ANIMATION_SAMPLES = 20;
+const EDGE_KEY_TIMES = Array.from(
+  { length: EDGE_ANIMATION_SAMPLES + 1 },
+  (_, i) => (i / EDGE_ANIMATION_SAMPLES).toFixed(4),
+).join(';');
 
 function buildSimEdge(e: EdgeDef): SimEdge {
   const geo = edgeGeo(e);
@@ -63,280 +92,475 @@ function buildSimEdge(e: EdgeDef): SimEdge {
     undershoot: (EDGE_GAP + MAX_PARTICLE_SIZE) / len,
     overshoot: 1 + (EDGE_GAP + MAX_PARTICLE_SIZE) / len,
     progressPerSec: PARTICLE_PX_SPEED / len,
-    isSource: e.from === 'writer' || e.from === 'storage',
     dim: e.dim ?? false,
     sendOffsetNode: e.sendOffsetNode,
   };
 }
 
-export function useParticles(edges: EdgeDef[], stepIdx: number) {
-  const [renderState, setRenderState] = useState<{
-    particles: Particle[];
-    flushEdges: FlushEdgeRender[];
-  }>({ particles: [], flushEdges: [] });
-  const animRef = useRef(0);
+function buildParticleMotion(p: ParticleInstance): AnimatedParticleRender {
+  const points: Array<{ x: number; y: number }> = [];
 
-  const globalTimeRef = useRef(0);
+  for (let i = 0; i <= PARTICLE_MOTION_SAMPLES; i++) {
+    const t = i / PARTICLE_MOTION_SAMPLES;
+    const progress = p.startProgress + (p.endProgress - p.startProgress) * t;
+    const point = bezierPoint(p.geo, progress);
+    points.push(point);
+  }
+
+  return {
+    id: p.id,
+    points,
+    size: p.size,
+    n: p.n,
+    dim: p.dim,
+    durMs: ((p.endProgress - p.startProgress) / p.progressPerSec) * 1000,
+  };
+}
+
+function buildFlushDashValues(phase: 'growing' | 'shrinking') {
+  const values: number[] = [];
+  for (let i = 0; i <= EDGE_ANIMATION_SAMPLES; i++) {
+    const t = i / EDGE_ANIMATION_SAMPLES;
+    values.push(phase === 'growing' ? (1 - t) * (1 - t) : -t * t);
+  }
+  return {
+    values: values.join(';'),
+    keyTimes: EDGE_KEY_TIMES,
+  };
+}
+
+function scheduleTimeout(
+  timers: Set<number>,
+  delayMs: number,
+  isValid: () => boolean,
+  fn: () => void,
+) {
+  const id = window.setTimeout(
+    () => {
+      timers.delete(id);
+      if (!isValid()) return;
+      fn();
+    },
+    Math.max(0, delayMs),
+  );
+  timers.add(id);
+  return id;
+}
+
+function clearTimeouts(timers: Set<number>) {
+  for (const id of timers) {
+    window.clearTimeout(id);
+  }
+  timers.clear();
+}
+
+export function useParticles(edges: EdgeDef[], stepIdx: number) {
+  const [particles, setParticles] = useState<AnimatedParticleRender[]>([]);
+  const [flushEdges, setFlushEdges] = useState<AnimatedFlushEdgeRender[]>([]);
+
+  const simTokenRef = useRef(0);
+  const stepTokenRef = useRef(0);
+  const stepIdxRef = useRef(stepIdx);
+  const edgesRef = useRef(edges);
+
+  const persistentTimersRef = useRef(new Set<number>());
+  const stepTimersRef = useRef(new Set<number>());
+  const writerTimerRef = useRef<number | null>(null);
+  const writerLoopActiveRef = useRef(false);
+
   const nodeArrivedRef = useRef(new Map<string, number>());
   const edgeSentRef = useRef(new Map<string, number>());
-  const liveRef = useRef<LiveParticle[]>([]);
+  const writerCountRef = useRef(0);
+
+  const activeStreamsRef = useRef(new Map<string, ActiveStreamEdge>());
   const flushRef = useRef<FlushState | null>(null);
+  const liveCountsRef = useRef(new Map<string, number>());
+
+  const nextParticleIdRef = useRef(0);
+  const nextFlushRenderIdRef = useRef(0);
+
+  const schedulePersistent = useCallback((delayMs: number, fn: () => void) => {
+    const simToken = simTokenRef.current;
+    return scheduleTimeout(
+      persistentTimersRef.current,
+      delayMs,
+      () => simTokenRef.current === simToken,
+      fn,
+    );
+  }, []);
+
+  const scheduleStep = useCallback((delayMs: number, fn: () => void) => {
+    const simToken = simTokenRef.current;
+    const stepToken = stepTokenRef.current;
+    return scheduleTimeout(
+      stepTimersRef.current,
+      delayMs,
+      () =>
+        simTokenRef.current === simToken && stepTokenRef.current === stepToken,
+      fn,
+    );
+  }, []);
 
   useEffect(() => {
-    if (stepIdx === 0) {
-      globalTimeRef.current = 0;
-      nodeArrivedRef.current.clear();
-      edgeSentRef.current.clear();
-      liveRef.current = [];
-    }
-    flushRef.current = null;
-  }, [stepIdx]);
-
-  const streamEdges = useMemo(
-    () => edges.filter((e) => e.stream !== false && e.flush == null),
-    [edges],
-  );
-
-  const flushEdgeDefs = useMemo(
-    () => edges.filter((e) => e.flush != null),
-    [edges],
-  );
+    stepIdxRef.current = stepIdx;
+    edgesRef.current = edges;
+  }, [edges, stepIdx]);
 
   useEffect(() => {
-    if (flushEdgeDefs.length === 0) {
-      flushRef.current = null;
-      return;
-    }
-    const e = flushEdgeDefs[0];
-    const se = buildSimEdge(e);
-    flushRef.current = {
-      phase: 'growing',
-      phaseStart: globalTimeRef.current,
-      simEdge: { ...se, isSource: false, dim: false },
-      growDuration: edgeLength(edgeGeo(e)) / GROW_SPEED,
-      threshold: e.flush!,
+    const persistentTimers = persistentTimersRef.current;
+    const stepTimers = stepTimersRef.current;
+    return () => {
+      if (writerTimerRef.current != null) {
+        window.clearTimeout(writerTimerRef.current);
+        writerTimerRef.current = null;
+      }
+      writerLoopActiveRef.current = false;
+      clearTimeouts(persistentTimers);
+      clearTimeouts(stepTimers);
     };
-  }, [flushEdgeDefs]);
-
-  const simEdges = useMemo(() => streamEdges.map(buildSimEdge), [streamEdges]);
-
-  const simEdgesRef = useRef(simEdges);
-  useEffect(() => {
-    simEdgesRef.current = simEdges;
-  }, [simEdges]);
+  }, []);
 
   useEffect(() => {
-    let lastT = 0;
+    function getAvailable(nodeId: string) {
+      if (nodeId === 'writer') {
+        return writerCountRef.current;
+      }
+      if (nodeId === 'storage' && stepIdxRef.current === 5) {
+        return Math.max(nodeArrivedRef.current.get(nodeId) ?? 0, 10);
+      }
+      return nodeArrivedRef.current.get(nodeId) ?? 0;
+    }
 
-    const tick = (t: number) => {
-      if (!lastT) {
-        lastT = t;
-        animRef.current = requestAnimationFrame(tick);
+    function renderFlush(flush: FlushState | null) {
+      if (!flush || flush.phase === 'idle') {
+        setFlushEdges((prev) => (prev.length === 0 ? prev : []));
         return;
       }
-      const dt = Math.min((t - lastT) / 1000, SPAWN_INTERVAL);
-      lastT = t;
-      globalTimeRef.current += dt;
 
-      const info = simEdgesRef.current;
-      const nodeArrived = nodeArrivedRef.current;
-      const edgeSent = edgeSentRef.current;
-      const live = liveRef.current;
-
-      const getAvailable = (nodeId: string) => {
-        if (nodeId === 'writer') {
-          return Math.floor(globalTimeRef.current / SPAWN_INTERVAL);
-        }
-        // In step 6 (Replay), S3 always has data to serve
-        if (nodeId === 'storage' && stepIdx === 5) {
-          return Math.max(nodeArrived.get(nodeId) ?? 0, 10);
-        }
-        return nodeArrived.get(nodeId) ?? 0;
-      };
-
-      // Advance live particles
-      for (let i = live.length - 1; i >= 0; i--) {
-        const p = live[i];
-        p.progress += dt * p.progressPerSec;
-        if (p.progress >= p.overshoot) {
-          const prev = nodeArrived.get(p.to) ?? 0;
-          nodeArrived.set(p.to, prev + p.count);
-          live.splice(i, 1);
-        }
+      if (flush.phase === 'streaming' || flush.phase === 'draining') {
+        setFlushEdges([
+          {
+            key: flush.renderKey,
+            geo: flush.simEdge.geo,
+            phase: flush.phase,
+          },
+        ]);
+        return;
       }
 
-      // --- Flush state machine ---
+      const { values, keyTimes } = buildFlushDashValues(
+        flush.phase === 'growing' ? 'growing' : 'shrinking',
+      );
+      setFlushEdges([
+        {
+          key: flush.renderKey,
+          geo: flush.simEdge.geo,
+          phase: flush.phase,
+          values,
+          keyTimes,
+          durMs: flush.growDurationMs,
+        },
+      ]);
+    }
+
+    function maybeStartFlushFromIdle() {
       const flush = flushRef.current;
-      let flushActiveEdge: SimEdge | null = null;
-      if (flush) {
-        const elapsed = globalTimeRef.current - flush.phaseStart;
-        switch (flush.phase) {
-          case 'idle': {
-            const available = getAvailable(flush.simEdge.from);
-            const sent = edgeSent.get(flush.simEdge.key) ?? 0;
-            if (available - sent >= flush.threshold) {
-              flush.phase = 'growing';
-              flush.phaseStart = globalTimeRef.current;
-            }
-            break;
-          }
-          case 'growing': {
-            if (elapsed >= flush.growDuration) {
-              flush.phase = 'streaming';
-              flush.phaseStart = globalTimeRef.current;
-              flushActiveEdge = flush.simEdge;
-            }
-            break;
-          }
-          case 'streaming': {
-            flushActiveEdge = flush.simEdge;
-            break;
-          }
-          case 'draining': {
-            const hasFlushParticles = live.some(
-              (p) => p.edgeKey === flush.simEdge.key,
-            );
-            if (!hasFlushParticles) {
-              flush.phase = 'shrinking';
-              flush.phaseStart = globalTimeRef.current;
-            }
-            break;
-          }
-          case 'shrinking': {
-            if (elapsed >= flush.growDuration) {
-              flush.phase = 'idle';
-              flush.phaseStart = globalTimeRef.current;
-            }
-            break;
-          }
-        }
-      }
+      if (!flush || flush.phase !== 'idle') return;
 
-      // Spawn particles
-      const spawnEdges = flushActiveEdge ? [...info, flushActiveEdge] : info;
+      const available = getAvailable(flush.simEdge.from);
+      const sent = edgeSentRef.current.get(flush.simEdge.key) ?? 0;
+      if (available - sent < flush.threshold) return;
+
+      flush.phase = 'growing';
+      flush.renderKey = `${flush.simEdge.key}:flush:${nextFlushRenderIdRef.current++}`;
+      renderFlush(flush);
+
+      scheduleStep(flush.growDurationMs, () => {
+        const current = flushRef.current;
+        if (!current || current.phase !== 'growing') return;
+        current.phase = 'streaming';
+        renderFlush(current);
+        processActiveEdges();
+      });
+    }
+
+    function startFlushShrinking() {
+      const flush = flushRef.current;
+      if (!flush || flush.phase !== 'draining') return;
+
+      flush.phase = 'shrinking';
+      flush.renderKey = `${flush.simEdge.key}:flush:${nextFlushRenderIdRef.current++}`;
+      renderFlush(flush);
+
+      scheduleStep(flush.growDurationMs, () => {
+        const current = flushRef.current;
+        if (!current || current.phase !== 'shrinking') return;
+        current.phase = 'idle';
+        renderFlush(current);
+        maybeStartFlushFromIdle();
+      });
+    }
+
+    function startFlushDraining() {
+      const flush = flushRef.current;
+      if (!flush || flush.phase !== 'streaming') return;
+
+      flush.phase = 'draining';
+      renderFlush(flush);
+
+      if ((liveCountsRef.current.get(flush.simEdge.key) ?? 0) === 0) {
+        startFlushShrinking();
+      }
+    }
+
+    function processActiveEdges() {
+      maybeStartFlushFromIdle();
+
+      const streamEdges = [...activeStreamsRef.current.values()];
+      const flush = flushRef.current;
+      const spawnEdges =
+        flush && flush.phase === 'streaming'
+          ? [...streamEdges, { ...flush.simEdge, instanceKey: flush.renderKey }]
+          : streamEdges;
+
+      const spawned: AnimatedParticleRender[] = [];
       let changed = true;
       let iterations = 0;
+
       while (changed && iterations < 5) {
         changed = false;
         iterations++;
+
         for (const se of spawnEdges) {
           const available = getAvailable(se.from);
-          let sent = edgeSent.get(se.key);
+          let sent = edgeSentRef.current.get(se.key);
           if (sent == null) {
             sent = se.sendOffsetNode
-              ? (nodeArrived.get(se.sendOffsetNode) ?? 0)
+              ? (nodeArrivedRef.current.get(se.sendOffsetNode) ?? 0)
               : 0;
-            edgeSent.set(se.key, sent);
+            edgeSentRef.current.set(se.key, sent);
           }
           if (available <= sent) continue;
 
           const batch = available - sent;
+          const particlesToSpawn: ParticleInstance[] = [];
 
           if (batch > 8) {
             const weight = Math.min(batch, 10);
-            live.push({
+            particlesToSpawn.push({
+              id: nextParticleIdRef.current++,
               edgeKey: se.key,
               geo: se.geo,
-              progress: -se.undershoot,
+              startProgress: -se.undershoot,
+              endProgress: se.overshoot,
               progressPerSec: se.progressPerSec,
               size: BASE_PARTICLE_SIZE * 1.8,
               n: sent,
               to: se.to,
-              overshoot: se.overshoot,
               count: weight,
+              dim: se.dim,
             });
-            edgeSent.set(se.key, sent + weight);
+            edgeSentRef.current.set(se.key, sent + weight);
           } else {
             const toSpawn = Math.min(batch, 2);
             for (let i = 0; i < toSpawn; i++) {
               const n = sent + i;
-              live.push({
+              particlesToSpawn.push({
+                id: nextParticleIdRef.current++,
                 edgeKey: se.key,
                 geo: se.geo,
-                progress: -se.undershoot - i * 0.2,
+                startProgress: -se.undershoot - i * PARTICLE_STAGGER_PROGRESS,
+                endProgress: se.overshoot,
                 progressPerSec: se.progressPerSec,
                 size: BASE_PARTICLE_SIZE + sizeVar[n % sizeVar.length],
                 n,
                 to: se.to,
-                overshoot: se.overshoot,
                 count: 1,
+                dim: se.dim,
               });
             }
-            edgeSent.set(se.key, sent + toSpawn);
+            edgeSentRef.current.set(se.key, sent + toSpawn);
           }
+
+          for (const particle of particlesToSpawn) {
+            const renderParticle = buildParticleMotion(particle);
+            liveCountsRef.current.set(
+              particle.edgeKey,
+              (liveCountsRef.current.get(particle.edgeKey) ?? 0) + 1,
+            );
+            spawned.push(renderParticle);
+
+            schedulePersistent(renderParticle.durMs, () => {
+              setParticles((prev) => prev.filter((p) => p.id !== particle.id));
+
+              const nextLive =
+                (liveCountsRef.current.get(particle.edgeKey) ?? 1) - 1;
+              if (nextLive <= 0) {
+                liveCountsRef.current.delete(particle.edgeKey);
+              } else {
+                liveCountsRef.current.set(particle.edgeKey, nextLive);
+              }
+
+              nodeArrivedRef.current.set(
+                particle.to,
+                (nodeArrivedRef.current.get(particle.to) ?? 0) + particle.count,
+              );
+
+              const currentFlush = flushRef.current;
+              if (
+                currentFlush &&
+                currentFlush.phase === 'draining' &&
+                currentFlush.simEdge.key === particle.edgeKey &&
+                !liveCountsRef.current.has(particle.edgeKey)
+              ) {
+                startFlushShrinking();
+              }
+
+              processActiveEdges();
+            });
+          }
+
           changed = true;
         }
       }
 
-      // Post-spawn: streaming → draining
-      if (flush && flush.phase === 'streaming') {
-        const available = getAvailable(flush.simEdge.from);
-        const sent = edgeSent.get(flush.simEdge.key) ?? 0;
+      if (spawned.length > 0) {
+        setParticles((prev) => [...prev, ...spawned]);
+      }
+
+      const currentFlush = flushRef.current;
+      if (currentFlush && currentFlush.phase === 'streaming') {
+        const available = getAvailable(currentFlush.simEdge.from);
+        const sent = edgeSentRef.current.get(currentFlush.simEdge.key) ?? 0;
         if (sent >= available) {
-          flush.phase = 'draining';
-          flush.phaseStart = globalTimeRef.current;
+          startFlushDraining();
         }
       }
+    }
 
-      // Build dim lookup
-      const dimByKey = new Map<string, boolean>();
-      for (const se of info) {
-        dimByKey.set(se.key, se.dim);
+    function stopWriterLoop() {
+      writerLoopActiveRef.current = false;
+      if (writerTimerRef.current != null) {
+        window.clearTimeout(writerTimerRef.current);
+        writerTimerRef.current = null;
       }
+    }
 
-      // Compute flush edge render state
-      const flushEdges: FlushEdgeRender[] = [];
-      if (flush) {
-        const fElapsed = globalTimeRef.current - flush.phaseStart;
-        const fT = Math.min(1, fElapsed / flush.growDuration);
-        switch (flush.phase) {
-          case 'growing': {
-            const eased = 1 - (1 - fT) * (1 - fT);
-            flushEdges.push({
-              key: flush.simEdge.key,
-              geo: flush.simEdge.geo,
-              dashOffset: 1 - eased,
-            });
-            break;
-          }
-          case 'streaming':
-          case 'draining': {
-            flushEdges.push({
-              key: flush.simEdge.key,
-              geo: flush.simEdge.geo,
-              dashOffset: 0,
-            });
-            break;
-          }
-          case 'shrinking': {
-            const eased = 1 - fT * fT;
-            flushEdges.push({
-              key: flush.simEdge.key,
-              geo: flush.simEdge.geo,
-              dashOffset: eased - 1,
-            });
-            break;
-          }
+    function startWriterLoop() {
+      if (writerLoopActiveRef.current) return;
+      writerLoopActiveRef.current = true;
+
+      const tick = () => {
+        writerTimerRef.current = null;
+        if (!writerLoopActiveRef.current || stepIdxRef.current >= 4) {
+          writerLoopActiveRef.current = false;
+          return;
         }
-      }
 
-      setRenderState({
-        particles: live.map((p) => ({
-          geo: p.geo,
-          progress: p.progress,
-          size: p.size,
-          n: p.n,
-          dim: dimByKey.get(p.edgeKey),
-        })),
-        flushEdges,
+        writerCountRef.current += 1;
+        processActiveEdges();
+
+        writerTimerRef.current = window.setTimeout(tick, SPAWN_INTERVAL * 1000);
+      };
+
+      writerTimerRef.current = window.setTimeout(tick, SPAWN_INTERVAL * 1000);
+    }
+
+    if (stepIdx === 0) {
+      simTokenRef.current++;
+      clearTimeouts(persistentTimersRef.current);
+      stopWriterLoop();
+      writerCountRef.current = 0;
+      nodeArrivedRef.current.clear();
+      edgeSentRef.current.clear();
+      liveCountsRef.current.clear();
+      schedulePersistent(0, () => {
+        setParticles((prev) => (prev.length === 0 ? prev : []));
       });
+      startWriterLoop();
+    }
 
-      animRef.current = requestAnimationFrame(tick);
-    };
+    if (stepIdx < 4) {
+      startWriterLoop();
+    } else {
+      stopWriterLoop();
+    }
 
-    animRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [stepIdx]);
+    stepTokenRef.current++;
+    clearTimeouts(stepTimersRef.current);
+    activeStreamsRef.current.clear();
+    flushRef.current = null;
+    scheduleStep(0, () => {
+      setFlushEdges((prev) => (prev.length === 0 ? prev : []));
+    });
 
-  return renderState;
+    const currentEdges = edgesRef.current;
+    const streamEdges = currentEdges.filter(
+      (edge) => edge.stream !== false && edge.flush == null,
+    );
+
+    streamEdges.forEach((edge, index) => {
+      const instanceKey = `${edgeKey(edge)}:${index}`;
+      const simEdge: ActiveStreamEdge = {
+        ...buildSimEdge(edge),
+        instanceKey,
+      };
+
+      const activate = () => {
+        activeStreamsRef.current.set(instanceKey, simEdge);
+        processActiveEdges();
+      };
+
+      const deactivate = () => {
+        activeStreamsRef.current.delete(instanceKey);
+      };
+
+      const enterDelayMs = (edge.enterDelay ?? 0) * 1000;
+      if (enterDelayMs > 0) {
+        scheduleStep(enterDelayMs, activate);
+      } else {
+        activate();
+      }
+
+      if (edge.autoExit != null) {
+        scheduleStep(edge.autoExit * 1000, deactivate);
+      }
+    });
+
+    const flushEdge = currentEdges.find((edge) => edge.flush != null);
+    if (flushEdge) {
+      const initFlush = () => {
+        const simEdge = buildSimEdge(flushEdge);
+        flushRef.current = {
+          phase: 'growing',
+          simEdge,
+          growDurationMs: (edgeLength(edgeGeo(flushEdge)) / GROW_SPEED) * 1000,
+          threshold: flushEdge.flush!,
+          renderKey: `${simEdge.key}:flush:${nextFlushRenderIdRef.current++}`,
+        };
+        renderFlush(flushRef.current);
+
+        scheduleStep(flushRef.current.growDurationMs, () => {
+          const current = flushRef.current;
+          if (!current || current.phase !== 'growing') return;
+          current.phase = 'streaming';
+          renderFlush(current);
+          processActiveEdges();
+        });
+      };
+
+      const enterDelayMs = (flushEdge.enterDelay ?? 0) * 1000;
+      if (enterDelayMs > 0) {
+        scheduleStep(enterDelayMs, initFlush);
+      } else {
+        initFlush();
+      }
+    }
+
+    if (stepIdx !== 0 && persistentTimersRef.current.size === 0) {
+      startWriterLoop();
+    }
+  }, [schedulePersistent, scheduleStep, stepIdx]);
+
+  return { particles, flushEdges };
 }

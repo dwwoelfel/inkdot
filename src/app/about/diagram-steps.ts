@@ -147,6 +147,9 @@ export const STEPS: Step[] = [
           from: 'storage',
           to: 'readerC',
           enterDelay: fetchGrow,
+          shrink: true,
+          shrinkDelay: fetchGrow,
+          shrinkToward: 'to',
         },
         // Phase 1b: live writes forwarded through servers (simultaneous)
         { from: 'instant2', to: 'instant3', enterDelay: connectGrow },
@@ -291,6 +294,7 @@ export const STEPS: Step[] = [
           enterDelay: fetchGrow,
           shrink: true,
           shrinkDelay: fetchGrow,
+          shrinkToward: 'to',
         },
       ];
     })(),

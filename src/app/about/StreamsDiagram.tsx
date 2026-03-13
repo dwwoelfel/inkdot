@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   C,
@@ -9,114 +16,392 @@ import {
   MAX_PARTICLE_SIZE,
   NODES,
   PARTICLE_PX_SPEED,
+  PARTICLE_STAGGER_PROGRESS,
   SVG_H,
   SVG_W,
-  bezierPoint,
+  type EdgeGeo,
   edgeGeo,
   edgeKey,
   edgeLength,
+  type EdgeDef,
 } from './diagram-data';
 import { STEPS } from './diagram-steps';
 import { useParticles } from './useParticles';
 import { CleanNode } from './CleanNode';
+
+function AnimatedEdgePath({
+  edge,
+  active,
+}: {
+  edge: EdgeDef;
+  active: boolean;
+}) {
+  const groupRef = useRef<SVGGElement | null>(null);
+  const pathRef = useRef<SVGPathElement | null>(null);
+  const geo = edgeGeo(edge);
+  const dimEdge = active && edge.dim;
+  const baseOpacity = active ? (dimEdge ? 0.25 : 1) : 0.15;
+
+  const isGrow = active && edge.grow;
+  const isShrink = active && edge.shrink;
+  const hasPathAnim = isGrow || isShrink;
+  const growDurationMs = (edgeLength(geo) / GROW_SPEED) * 1000;
+  const shrinkDurationMs = (edgeLength(geo) / PARTICLE_PX_SPEED) * 1000;
+  const particleTrailDelayMs =
+    edge.stream === false ? 0 : PARTICLE_STAGGER_PROGRESS * shrinkDurationMs;
+  const shrinkDelayMs =
+    ((edge.shrinkDelay ?? 0) -
+      (edge.enterDelay ?? 0) +
+      (EDGE_GAP + MAX_PARTICLE_SIZE) / PARTICLE_PX_SPEED) *
+      1000 +
+    particleTrailDelayMs;
+
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    const path = pathRef.current;
+    if (!group || !path) return;
+
+    const timers: number[] = [];
+    const rafs: number[] = [];
+
+    const setOpacity = (value: number) => {
+      group.style.opacity = String(value);
+    };
+
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const setSegment = (fromT: number, toT: number) => {
+      const x1 = lerp(geo.x1, geo.x2, fromT);
+      const y1 = lerp(geo.y1, geo.y2, fromT);
+      const x2 = lerp(geo.x1, geo.x2, toT);
+      const y2 = lerp(geo.y1, geo.y2, toT);
+      path.setAttribute('d', `M${x1},${y1} L${x2},${y2}`);
+    };
+
+    const resetPath = () => {
+      path.setAttribute('d', geo.d);
+    };
+
+    const runAnimation = (
+      delayMs: number,
+      durationMs: number,
+      update: (progress: number) => void,
+    ) => {
+      const timer = window.setTimeout(
+        () => {
+          let start = 0;
+          const tick = (now: number) => {
+            if (!start) start = now;
+            const progress =
+              durationMs === 0 ? 1 : Math.min(1, (now - start) / durationMs);
+            update(progress);
+            if (progress < 1) {
+              const raf = requestAnimationFrame(tick);
+              rafs.push(raf);
+            }
+          };
+          const raf = requestAnimationFrame(tick);
+          rafs.push(raf);
+        },
+        Math.max(0, delayMs),
+      );
+      timers.push(timer);
+    };
+
+    setOpacity(baseOpacity);
+    if (hasPathAnim) {
+      if (isGrow) {
+        setSegment(0, 0);
+      } else {
+        resetPath();
+      }
+    } else {
+      resetPath();
+    }
+
+    if (isGrow) {
+      runAnimation(0, growDurationMs, (progress) => {
+        setOpacity(baseOpacity);
+        const eased = (1 - progress) * (1 - progress);
+        setSegment(0, 1 - eased);
+      });
+    }
+
+    if (isShrink) {
+      runAnimation(shrinkDelayMs, shrinkDurationMs, (progress) => {
+        if (edge.shrinkToward === 'from') {
+          setSegment(0, 1 - progress);
+        } else {
+          setSegment(progress, 1);
+        }
+        if (progress >= 1) {
+          setOpacity(0);
+        }
+      });
+    }
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      rafs.forEach((raf) => cancelAnimationFrame(raf));
+      resetPath();
+    };
+  }, [
+    active,
+    baseOpacity,
+    edge.stream,
+    edge.shrinkToward,
+    geo.d,
+    geo.x1,
+    geo.x2,
+    geo.y1,
+    geo.y2,
+    growDurationMs,
+    hasPathAnim,
+    isGrow,
+    isShrink,
+    shrinkDelayMs,
+    shrinkDurationMs,
+  ]);
+
+  return (
+    <g
+      ref={groupRef}
+      opacity={baseOpacity}
+      style={{ transition: 'opacity 0.4s ease-out' }}
+    >
+      <path
+        ref={pathRef}
+        d={geo.d}
+        fill="none"
+        stroke={active && !dimEdge ? C.edge : C.edgeDim}
+        strokeWidth={active ? 1.5 : 0.8}
+        strokeLinecap="round"
+        markerEnd={!active ? 'url(#arrow-dim)' : undefined}
+      />
+    </g>
+  );
+}
+
+function ParticleSprite({
+  particle,
+}: {
+  particle: {
+    points: Array<{ x: number; y: number }>;
+    size: number;
+    n: number;
+    dim?: boolean;
+    durMs: number;
+  };
+}) {
+  const ref = useRef<SVGCircleElement | null>(null);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const samples = particle.points;
+    const lastIdx = samples.length - 1;
+    let raf = 0;
+    let start = 0;
+
+    const applyPoint = (x: number, y: number) => {
+      node.setAttribute('cx', String(x));
+      node.setAttribute('cy', String(y));
+    };
+
+    const tick = (now: number) => {
+      if (!start) start = now;
+      const elapsed = Math.min(now - start, particle.durMs);
+      const progress =
+        particle.durMs === 0 ? 1 : Math.min(1, elapsed / particle.durMs);
+      const scaled = progress * lastIdx;
+      const idx = Math.min(lastIdx - 1, Math.floor(scaled));
+      const localT = scaled - idx;
+      const from = samples[idx] ?? samples[lastIdx];
+      const to = samples[idx + 1] ?? samples[lastIdx];
+      const x = from.x + (to.x - from.x) * localT;
+      const y = from.y + (to.y - from.y) * localT;
+
+      applyPoint(x, y);
+
+      if (elapsed < particle.durMs) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    applyPoint(samples[0].x, samples[0].y);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [particle.durMs, particle.points]);
+
+  return (
+    <circle
+      ref={ref}
+      cx={particle.points[0]?.x ?? 0}
+      cy={particle.points[0]?.y ?? 0}
+      r={particle.size}
+      fill={
+        particle.dim
+          ? C.edgeDim
+          : [
+              '#e74c3c',
+              '#3498db',
+              '#2ecc71',
+              '#f39c12',
+              '#9b59b6',
+              '#1abc9c',
+              '#e67e22',
+              '#e84393',
+            ][particle.n % 8]
+      }
+      opacity={particle.dim ? 0.3 : 0.9}
+      filter={particle.dim ? undefined : 'url(#particle-glow)'}
+    />
+  );
+}
+
+function FlushEdgePath({
+  flushEdge,
+}: {
+  flushEdge: {
+    geo: EdgeGeo;
+    phase: 'growing' | 'streaming' | 'draining' | 'shrinking';
+    durMs?: number;
+  };
+}) {
+  const ref = useRef<SVGPathElement | null>(null);
+
+  useLayoutEffect(() => {
+    const path = ref.current;
+    if (!path) return;
+
+    let raf = 0;
+    let start = 0;
+
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const setSegment = (fromT: number, toT: number) => {
+      const x1 = lerp(flushEdge.geo.x1, flushEdge.geo.x2, fromT);
+      const y1 = lerp(flushEdge.geo.y1, flushEdge.geo.y2, fromT);
+      const x2 = lerp(flushEdge.geo.x1, flushEdge.geo.x2, toT);
+      const y2 = lerp(flushEdge.geo.y1, flushEdge.geo.y2, toT);
+      path.setAttribute('d', `M${x1},${y1} L${x2},${y2}`);
+    };
+
+    if (flushEdge.phase === 'streaming' || flushEdge.phase === 'draining') {
+      path.setAttribute('d', flushEdge.geo.d);
+      return;
+    }
+
+    const durationMs = flushEdge.durMs ?? 0;
+    const tick = (now: number) => {
+      if (!start) start = now;
+      const progress =
+        durationMs === 0 ? 1 : Math.min(1, (now - start) / durationMs);
+      if (flushEdge.phase === 'growing') {
+        setSegment(0, progress);
+      } else {
+        setSegment(progress, 1);
+      }
+      if (progress < 1) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    if (flushEdge.phase === 'growing') {
+      setSegment(0, 0);
+    } else {
+      path.setAttribute('d', flushEdge.geo.d);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      path.setAttribute('d', flushEdge.geo.d);
+    };
+  }, [
+    flushEdge.durMs,
+    flushEdge.geo.d,
+    flushEdge.geo.x1,
+    flushEdge.geo.x2,
+    flushEdge.geo.y1,
+    flushEdge.geo.y2,
+    flushEdge.phase,
+  ]);
+
+  return (
+    <path
+      ref={ref}
+      d={flushEdge.geo.d}
+      fill="none"
+      stroke={C.edge}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+    />
+  );
+}
 
 export function StreamsDiagram() {
   const [stepIdx, setStepIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const step = STEPS[stepIdx];
 
-  // Manage phased edges (enterDelay / autoExit)
-  const hasLifecycleEdges = step.activeEdges.some((e) => e.enterDelay);
-
   useEffect(() => {
-    if (!hasLifecycleEdges) return;
     const thresholds = [
       ...new Set(
-        step.activeEdges.flatMap((e) =>
-          [e.enterDelay, e.autoExit].filter(
-            (v): v is number => v != null && v > 0,
+        step.activeEdges.flatMap((edge) =>
+          [edge.enterDelay, edge.autoExit].filter(
+            (value): value is number => value != null && value > 0,
           ),
         ),
       ),
     ].sort((a, b) => a - b);
 
-    const timers = thresholds.map((t) =>
-      window.setTimeout(
-        () => setElapsed((prev) => Math.max(prev, t)),
-        t * 1000,
-      ),
-    );
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [stepIdx, hasLifecycleEdges, step.activeEdges]);
+    if (thresholds.length === 0) return;
 
-  // Filter active edges based on elapsed time
-  const visibleActiveEdges = useMemo(() => {
-    if (!hasLifecycleEdges) return step.activeEdges;
-    return step.activeEdges.filter((e) => {
-      const enter = e.enterDelay ?? 0;
-      const exit = e.autoExit ?? Infinity;
-      return elapsed >= enter && elapsed < exit;
-    });
-  }, [step.activeEdges, hasLifecycleEdges, elapsed]);
-
-  // Grow/shrink animation for edges
-  const hasEdgeAnim = step.activeEdges.some((e) => e.grow || e.shrink);
-  const [growElapsed, setGrowElapsed] = useState(Infinity);
-  useEffect(() => {
-    if (!hasEdgeAnim) return;
-    const start = performance.now();
-    const animEdges = step.activeEdges.filter((e) => e.grow || e.shrink);
-    const maxEnd = Math.max(
-      ...animEdges.map((e) => {
-        const geo = edgeGeo(e);
-        const len = edgeLength(geo);
-        let end = 0;
-        if (e.grow) {
-          end = Math.max(
-            end,
-            (e.enterDelay ?? 0) * 1000 + (len / GROW_SPEED) * 1000,
-          );
-        }
-        if (e.shrink) {
-          const undershootMs =
-            ((EDGE_GAP + MAX_PARTICLE_SIZE) / PARTICLE_PX_SPEED) * 1000;
-          end = Math.max(
-            end,
-            (e.shrinkDelay ?? 0) * 1000 +
-              undershootMs +
-              (len / PARTICLE_PX_SPEED) * 1000,
-          );
-        }
-        return end;
-      }),
+    const timers = thresholds.map((threshold) =>
+      window.setTimeout(() => {
+        setElapsed((prev) => Math.max(prev, threshold));
+      }, threshold * 1000),
     );
-    let raf: number;
-    const tick = () => {
-      const ms = performance.now() - start;
-      setGrowElapsed(ms);
-      if (ms < maxEnd) raf = requestAnimationFrame(tick);
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [stepIdx, hasEdgeAnim, step.activeEdges]);
+  }, [step.activeEdges, stepIdx]);
 
-  const { particles, flushEdges } = useParticles(visibleActiveEdges, stepIdx);
+  const visibleActiveEdges = useMemo(
+    () =>
+      step.activeEdges.filter((edge) => {
+        const enter = edge.enterDelay ?? 0;
+        const exit = edge.autoExit ?? Infinity;
+        return elapsed >= enter && elapsed < exit;
+      }),
+    [elapsed, step.activeEdges],
+  );
+
+  const { particles, flushEdges } = useParticles(step.activeEdges, stepIdx);
 
   const activeNodeSet = new Set(step.activeNodes);
   const dimNodeSet = new Set(step.dimNodes ?? []);
-  const activeEdgeSet = new Set(visibleActiveEdges.map(edgeKey));
   const allEdges = useMemo(
     () => [
-      ...visibleActiveEdges.filter((e) => e.flush == null),
-      ...(step.dimEdges ?? []),
+      ...visibleActiveEdges
+        .filter((e) => e.flush == null)
+        .map((edge, index) => ({
+          id: `active:${index}:${edgeKey(edge)}`,
+          edge,
+          active: true,
+        })),
+      ...(step.dimEdges ?? []).map((edge, index) => ({
+        id: `dim:${index}:${edgeKey(edge)}`,
+        edge,
+        active: false,
+      })),
     ],
-    [visibleActiveEdges, step.dimEdges],
+    [step.dimEdges, visibleActiveEdges],
   );
 
   const goToStep = useCallback((idx: number) => {
     setStepIdx(idx);
     setElapsed(0);
-    setGrowElapsed(0);
   }, []);
   const prev = useCallback(
     () => goToStep(Math.max(0, stepIdx - 1)),
@@ -198,115 +483,18 @@ export function StreamsDiagram() {
           </text>
 
           {/* Edges */}
-          {allEdges.map((e) => {
-            const key = edgeKey(e);
-            const active = activeEdgeSet.has(key);
-            const geo = edgeGeo(e);
-            const isGrow = active && e.grow;
-            const isShrink = active && e.shrink;
-            const hasPathAnim = isGrow || isShrink;
-
-            let dashOffset: number | undefined;
-            if (hasPathAnim) {
-              dashOffset = 0;
-              if (isGrow) {
-                const dur = (edgeLength(geo) / GROW_SPEED) * 1000;
-                const growT = Math.min(
-                  1,
-                  Math.max(0, growElapsed - (e.enterDelay ?? 0) * 1000) / dur,
-                );
-                const growProgress = 1 - (1 - growT) * (1 - growT);
-                dashOffset = 1 - growProgress;
-              }
-              if (isShrink) {
-                const dur = (edgeLength(geo) / PARTICLE_PX_SPEED) * 1000;
-                const undershootMs =
-                  ((EDGE_GAP + MAX_PARTICLE_SIZE) / PARTICLE_PX_SPEED) * 1000;
-                const shrinkT = Math.min(
-                  1,
-                  Math.max(
-                    0,
-                    growElapsed - (e.shrinkDelay ?? 0) * 1000 - undershootMs,
-                  ) / dur,
-                );
-                if (shrinkT > 0) {
-                  dashOffset = -shrinkT;
-                }
-              }
-            }
-
-            const dimEdge = active && e.dim;
-            return (
-              <g
-                key={key}
-                style={{
-                  opacity: active ? (dimEdge ? 0.25 : 1) : 0.15,
-                  transition: 'opacity 0.4s ease-out',
-                }}
-              >
-                <path
-                  d={geo.d}
-                  fill="none"
-                  stroke={active && !dimEdge ? C.edge : C.edgeDim}
-                  strokeWidth={active ? 1.5 : 0.8}
-                  strokeLinecap="round"
-                  strokeDasharray={
-                    hasPathAnim
-                      ? 1
-                      : active && e.stream === false
-                        ? '4 2.5'
-                        : undefined
-                  }
-                  pathLength={hasPathAnim ? 1 : undefined}
-                  strokeDashoffset={hasPathAnim ? dashOffset : undefined}
-                  markerEnd={!active ? 'url(#arrow-dim)' : undefined}
-                />
-              </g>
-            );
+          {allEdges.map(({ id, edge, active }) => {
+            return <AnimatedEdgePath key={id} edge={edge} active={active} />;
           })}
 
           {/* Flush edges (grow/shrink animation) */}
           {flushEdges.map((f) => (
-            <path
-              key={f.key}
-              d={f.geo.d}
-              fill="none"
-              stroke={C.edge}
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              pathLength={1}
-              strokeDasharray={1}
-              strokeDashoffset={f.dashOffset}
-            />
+            <FlushEdgePath key={f.key} flushEdge={f} />
           ))}
 
           {/* Particles (behind nodes so they disappear into icons) */}
-          {particles.map((p, i) => {
-            const pos = bezierPoint(p.geo, p.progress);
-            return (
-              <circle
-                key={i}
-                cx={pos.x}
-                cy={pos.y}
-                r={p.size}
-                fill={
-                  p.dim
-                    ? C.edgeDim
-                    : [
-                        '#e74c3c',
-                        '#3498db',
-                        '#2ecc71',
-                        '#f39c12',
-                        '#9b59b6',
-                        '#1abc9c',
-                        '#e67e22',
-                        '#e84393',
-                      ][p.n % 8]
-                }
-                opacity={p.dim ? 0.3 : 0.9}
-                filter={p.dim ? undefined : 'url(#particle-glow)'}
-              />
-            );
+          {particles.map((p) => {
+            return <ParticleSprite key={p.id} particle={p} />;
           })}
 
           {/* Nodes */}

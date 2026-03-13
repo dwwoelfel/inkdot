@@ -122,6 +122,7 @@ export type EdgeDef = {
   flush?: number;
   shrink?: boolean;
   shrinkDelay?: number; // seconds from step start when shrink begins
+  shrinkToward?: 'from' | 'to';
   sendOffsetNode?: string; // initialize edgeSent to nodeArrived[this node] on first appearance
 };
 
@@ -167,6 +168,7 @@ export const SPAWN_INTERVAL = 0.7;
 export const BASE_PARTICLE_SIZE = 1.8;
 export const MAX_PARTICLE_SIZE = 4;
 export const COMBINE_THRESHOLD = 3;
+export const PARTICLE_STAGGER_PROGRESS = 0.2;
 
 // --- Geometry helpers ---
 
