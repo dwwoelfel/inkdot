@@ -674,6 +674,27 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
     canvasCacheDirtyRef.current = false;
   }, []);
 
+  // --- Cancel in-progress stroke (used by pinch zoom) ---
+
+  const cancelStroke = useCallback(() => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    const sid = currentShapeIdRef.current;
+    if (sid) {
+      localEventsRef.current = localEventsRef.current.filter(
+        (e) => e.shapeId !== sid,
+      );
+      currentShapeIdRef.current = null;
+    }
+    shapeStartRef.current = null;
+    moveDragStartRef.current = null;
+    moveSelectStartRef.current = null;
+    moveSelectCurrentRef.current = null;
+    moveModeRef.current = null;
+    canvasCacheDirtyRef.current = true;
+    redrawCanvas(bgColorRef.current);
+  }, [redrawCanvas]);
+
   // --- Pointer handlers ---
 
   const getCanvasPos = useCallback(
@@ -1224,6 +1245,7 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
+    cancelStroke,
 
     // Canvas operations
     redrawCanvas,

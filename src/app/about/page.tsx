@@ -48,8 +48,8 @@ export default function AboutPage() {
               persistence overhead.
             </p>
             <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
-              Streams never expire, so you can read stream after they&apos;re done to
-              replay sketches.
+              Streams never expire, so you can read stream after they&apos;re
+              done to replay sketches.
             </p>
             <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
               They were built to stream llm-generated responses to clients.

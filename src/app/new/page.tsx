@@ -31,6 +31,7 @@ import {
   type DrawingUserSettings,
 } from '../drawing';
 import { useGuestBootstrap } from '../InstantProvider';
+import { usePinchZoom } from '../usePinchZoom';
 
 function SignedOutNew() {
   const [showLogin, setShowLogin] = useState(false);
@@ -159,6 +160,10 @@ function DrawCanvas({
     writeCursorEvents: true,
     drawTraceOnCanvas: false,
   });
+
+  // Pinch-to-zoom
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const pinch = usePinchZoom(canvasContainerRef);
 
   // ensureStarted needs access to drawing values, so use a ref to avoid circular deps
   const ensureStartedRef = useRef(async () => {});
@@ -640,33 +645,55 @@ function DrawCanvas({
       )}
 
       {/* Canvas */}
-      <div className="border-border bg-surface relative overflow-hidden border-y sm:rounded-2xl sm:border sm:shadow-lg sm:shadow-slate-100/50">
-        <canvas
-          ref={drawing.canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="w-full cursor-crosshair"
-          style={{ touchAction: 'none', backgroundColor: drawing.bgColor }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drawing.handlePointerDown(e);
+      <div
+        ref={canvasContainerRef}
+        className="border-border bg-surface relative overflow-hidden border-y sm:rounded-2xl sm:border sm:shadow-lg sm:shadow-slate-100/50"
+      >
+        <div
+          className="relative"
+          style={{
+            transform: pinch.transform || undefined,
+            transformOrigin: '0 0',
           }}
-          onPointerMove={drawing.handlePointerMove}
-          onPointerUp={(e) => {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-            drawing.handlePointerUp(e);
-          }}
-        />
-        {drawing.traceUrl && drawing.showTrace && (
-          <img
-            src={drawing.traceUrl}
-            alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-            style={{
-              opacity: 0.5,
-              filter: isLightColor(drawing.bgColor) ? 'none' : 'invert(1)',
-            }}
+        >
+          <canvas
+            ref={drawing.canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="w-full cursor-crosshair"
+            style={{ touchAction: 'none', backgroundColor: drawing.bgColor }}
+            onPointerDown={(e) =>
+              pinch.wrapPointerDown(
+                e,
+                drawing.handlePointerDown,
+                drawing.cancelStroke,
+              )
+            }
+            onPointerMove={(e) =>
+              pinch.wrapPointerMove(e, drawing.handlePointerMove)
+            }
+            onPointerUp={(e) => pinch.wrapPointerUp(e, drawing.handlePointerUp)}
+            onPointerCancel={(e) => pinch.wrapPointerCancel(e)}
           />
+          {drawing.traceUrl && drawing.showTrace && (
+            <img
+              src={drawing.traceUrl}
+              alt=""
+              className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              style={{
+                opacity: 0.5,
+                filter: isLightColor(drawing.bgColor) ? 'none' : 'invert(1)',
+              }}
+            />
+          )}
+        </div>
+        {pinch.isZoomed && (
+          <button
+            onClick={pinch.resetZoom}
+            className="bg-surface/80 text-text-secondary hover:bg-surface border-border absolute top-2 right-2 z-10 rounded-lg border px-2 py-1 text-xs font-medium backdrop-blur-sm transition-colors"
+          >
+            Reset zoom
+          </button>
         )}
         <div className="bg-surface-secondary absolute right-0 bottom-0 left-0 h-1.5">
           <div

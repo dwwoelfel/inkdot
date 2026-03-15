@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import {
@@ -17,6 +17,7 @@ import {
   type DrawingUserSettings,
 } from '../drawing';
 import { useGuestBootstrap } from '../InstantProvider';
+import { usePinchZoom } from '../usePinchZoom';
 
 function SignedOutPractice() {
   const [showLogin, setShowLogin] = useState(false);
@@ -89,6 +90,8 @@ function PracticeCanvas() {
     drawTraceOnCanvas: true,
   });
   const { canvasRef, traceInputRef } = drawing;
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const pinch = usePinchZoom(canvasContainerRef);
 
   const saveImage = useCallback(() => {
     const canvas = canvasRef.current;
@@ -187,23 +190,45 @@ function PracticeCanvas() {
       )}
 
       {/* Canvas */}
-      <div className="border-border bg-surface relative overflow-hidden border-y sm:rounded-2xl sm:border sm:shadow-lg sm:shadow-slate-100/50">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="w-full cursor-crosshair"
-          style={{ touchAction: 'none', backgroundColor: drawing.bgColor }}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            drawing.handlePointerDown(e);
+      <div
+        ref={canvasContainerRef}
+        className="border-border bg-surface relative overflow-hidden border-y sm:rounded-2xl sm:border sm:shadow-lg sm:shadow-slate-100/50"
+      >
+        <div
+          className="relative"
+          style={{
+            transform: pinch.transform || undefined,
+            transformOrigin: '0 0',
           }}
-          onPointerMove={drawing.handlePointerMove}
-          onPointerUp={(e) => {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-            drawing.handlePointerUp(e);
-          }}
-        />
+        >
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="w-full cursor-crosshair"
+            style={{ touchAction: 'none', backgroundColor: drawing.bgColor }}
+            onPointerDown={(e) =>
+              pinch.wrapPointerDown(
+                e,
+                drawing.handlePointerDown,
+                drawing.cancelStroke,
+              )
+            }
+            onPointerMove={(e) =>
+              pinch.wrapPointerMove(e, drawing.handlePointerMove)
+            }
+            onPointerUp={(e) => pinch.wrapPointerUp(e, drawing.handlePointerUp)}
+            onPointerCancel={(e) => pinch.wrapPointerCancel(e)}
+          />
+        </div>
+        {pinch.isZoomed && (
+          <button
+            onClick={pinch.resetZoom}
+            className="bg-surface/80 text-text-secondary hover:bg-surface border-border absolute top-2 right-2 z-10 rounded-lg border px-2 py-1 text-xs font-medium backdrop-blur-sm transition-colors"
+          >
+            Reset zoom
+          </button>
+        )}
         <div className="bg-surface-secondary absolute right-0 bottom-0 left-0 h-1.5" />
       </div>
 
