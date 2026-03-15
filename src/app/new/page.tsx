@@ -133,6 +133,7 @@ function DrawCanvas({
 
   const finishedRef = useRef(false);
   const streamActiveRef = useRef(false);
+  const pendingEventsRef = useRef<StrokeEvent[]>([]);
 
   // Drawing hook
   const drawing = useDrawingCanvas({
@@ -146,7 +147,11 @@ function DrawCanvas({
     onEvent: useCallback((evt: StrokeEvent) => {
       if (finishedRef.current) return;
       const writer = writerRef.current;
-      if (!writer) return;
+      if (!writer) {
+        // Buffer events until the stream writer is ready
+        pendingEventsRef.current.push(evt);
+        return;
+      }
       writer.write(JSON.stringify(evt) + '\n');
     }, []),
     isActive: useCallback(
@@ -225,6 +230,18 @@ function DrawCanvas({
     // so the first real drawing event has t≈0 and playback doesn't
     // show dead time at the start
     startTimeRef.current = performance.now();
+
+    // Flush any events that were buffered while the stream was being created.
+    // Re-timestamp them relative to the new startTime so playback starts at t≈0.
+    const pending = pendingEventsRef.current;
+    if (pending.length > 0) {
+      const now = performance.now();
+      for (const evt of pending) {
+        evt.t = now - startTimeRef.current;
+        writer.write(JSON.stringify(evt) + '\n');
+      }
+      pendingEventsRef.current = [];
+    }
   };
 
   // Load remix events

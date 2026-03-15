@@ -1901,10 +1901,17 @@ export function TimerDisplay({
 
 export let lastX = 0;
 export let lastY = 0;
+// Midpoint smoothing state: lastMid is where the previous bezier curve ended.
+// Each new 'move' draws a quadratic bezier from lastMid to midpoint(last, current)
+// with 'last' as the control point. This produces C1-continuous smooth curves.
+let lastMidX = 0;
+let lastMidY = 0;
 
 export function resetDrawState() {
   lastX = 0;
   lastY = 0;
+  lastMidX = 0;
+  lastMidY = 0;
 }
 
 // Apply shape offset to an event's coordinates
@@ -1976,14 +1983,18 @@ export function drawEvent(
     const commands = evt.path.split(' ');
     let cx = 0;
     let cy = 0;
+    let mx = 0;
+    let my = 0;
     let first = true;
     for (const cmd of commands) {
       if (cmd.startsWith('M')) {
-        const [mx, my] = cmd.slice(1).split(',').map(Number);
+        const [px, py] = cmd.slice(1).split(',').map(Number);
         cx =
-          (mx + ((evt.shapeId && offsets?.get(evt.shapeId)?.dx) || 0)) * scale;
+          (px + ((evt.shapeId && offsets?.get(evt.shapeId)?.dx) || 0)) * scale;
         cy =
-          (my + ((evt.shapeId && offsets?.get(evt.shapeId)?.dy) || 0)) * scale;
+          (py + ((evt.shapeId && offsets?.get(evt.shapeId)?.dy) || 0)) * scale;
+        mx = cx;
+        my = cy;
         if (first) {
           // Draw initial dot like 'start' does
           ctx.beginPath();
@@ -1998,20 +2009,33 @@ export function drawEvent(
           (lx + ((evt.shapeId && offsets?.get(evt.shapeId)?.dx) || 0)) * scale;
         const ny =
           (ly + ((evt.shapeId && offsets?.get(evt.shapeId)?.dy) || 0)) * scale;
+        const newMidX = (cx + nx) / 2;
+        const newMidY = (cy + ny) / 2;
         ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(nx, ny);
+        ctx.moveTo(mx, my);
+        ctx.quadraticCurveTo(cx, cy, newMidX, newMidY);
         ctx.strokeStyle = color;
         ctx.lineWidth = size;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.stroke();
+        mx = newMidX;
+        my = newMidY;
         cx = nx;
         cy = ny;
       }
     }
+    // Draw final segment from last midpoint to last point
+    if (!first && (mx !== cx || my !== cy)) {
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(cx, cy);
+      ctx.stroke();
+    }
     lastX = cx;
     lastY = cy;
+    lastMidX = cx;
+    lastMidY = cy;
     return;
   }
 
@@ -2022,6 +2046,8 @@ export function drawEvent(
   if (evt.type === 'start') {
     lastX = x;
     lastY = y;
+    lastMidX = x;
+    lastMidY = y;
     // Don't draw a dot for shape tool starts (rect/circle/line)
     const shapeTools = ['rect', 'circle', 'line'];
     if (!shapeTools.includes(evt.tool || '')) {
@@ -2031,9 +2057,14 @@ export function drawEvent(
       ctx.fill();
     }
   } else if (evt.type === 'move') {
+    // Quadratic bezier smoothing: draw curve from previous midpoint
+    // to new midpoint, using the previous raw point as control point.
+    // Produces C1-continuous curves through midpoints between samples.
+    const midX = (lastX + x) / 2;
+    const midY = (lastY + y) / 2;
     ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
+    ctx.moveTo(lastMidX, lastMidY);
+    ctx.quadraticCurveTo(lastX, lastY, midX, midY);
     ctx.strokeStyle = evt.color || '#1e293b';
     ctx.lineWidth = size;
     ctx.lineCap = 'round';
@@ -2041,9 +2072,21 @@ export function drawEvent(
     ctx.stroke();
     lastX = x;
     lastY = y;
+    lastMidX = midX;
+    lastMidY = midY;
   } else if (evt.type === 'end') {
+    // Draw final segment from last midpoint to end position
+    if (lastMidX !== x || lastMidY !== y) {
+      ctx.beginPath();
+      ctx.moveTo(lastMidX, lastMidY);
+      ctx.lineTo(x, y);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
     lastX = x;
     lastY = y;
+    lastMidX = x;
+    lastMidY = y;
   }
 }
 

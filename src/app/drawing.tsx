@@ -712,11 +712,14 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
   );
 
   const handlePointerDown = useCallback(
-    async (e: React.PointerEvent<HTMLCanvasElement>) => {
-      if (beforePointerDownRef.current) {
-        await beforePointerDownRef.current();
-      }
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
       startedRef.current = true;
+      // Fire-and-forget: don't block drawing on async initialization
+      // (e.g. creating DB stream on first stroke). Events are buffered
+      // locally and flushed when the stream is ready.
+      if (beforePointerDownRef.current) {
+        beforePointerDownRef.current();
+      }
 
       const pos = getCanvasPos(e);
       const t = getTimestampRef.current();
