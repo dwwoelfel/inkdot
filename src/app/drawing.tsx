@@ -772,20 +772,23 @@ export function useDrawingCanvas(opts: UseDrawingCanvasOptions) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         const sid = crypto.randomUUID();
-        const fillEvt: StrokeEvent = {
-          t,
-          ...pos,
-          type: 'fill',
-          color: penColorRef.current,
-          shapeId: sid,
-        };
-        floodFill(
+        const spans = floodFill(
           ctx,
           Math.round(pos.x),
           Math.round(pos.y),
           penColorRef.current,
         );
-        writeEvent(fillEvt);
+        if (spans) {
+          const fillEvt: StrokeEvent = {
+            t,
+            ...pos,
+            type: 'fill',
+            color: penColorRef.current,
+            shapeId: sid,
+            fillSpans: spans,
+          };
+          writeEvent(fillEvt);
+        }
         return;
       }
 

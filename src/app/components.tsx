@@ -51,6 +51,8 @@ export type StrokeEvent = {
   shapeId?: string;
   // For compact stroke events (SVG-like path data: "M10,20 L15,25 L20,30")
   path?: string;
+  // For reified fill regions (RLE scanline spans: "y,x1,x2;y,x1,x2;...")
+  fillSpans?: string;
 };
 
 // Accumulated offsets from relocate events, keyed by shapeId
@@ -2148,12 +2150,24 @@ export function drawEvent(
   }
 
   if (evt.type === 'fill') {
-    floodFill(
-      ctx,
-      Math.round(ox * scale),
-      Math.round(oy * scale),
-      evt.color || '#1e293b',
-    );
+    if (evt.fillSpans) {
+      const o = offsets?.get(evt.shapeId ?? '') || { dx: 0, dy: 0 };
+      drawFillSpans(
+        ctx,
+        evt.fillSpans,
+        evt.color || '#1e293b',
+        o.dx,
+        o.dy,
+        scale,
+      );
+    } else {
+      floodFill(
+        ctx,
+        Math.round(ox * scale),
+        Math.round(oy * scale),
+        evt.color || '#1e293b',
+      );
+    }
     return;
   }
 
@@ -2348,12 +2362,15 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// Encode filled region as RLE scanline spans: "y,x1,x2;y,x1,x2;..."
+// Each span is a horizontal run [x1, x2) on row y.
+// Grow=2 dilates the region to cover anti-aliased fringe.
 export function floodFill(
   ctx: CanvasRenderingContext2D,
   startX: number,
   startY: number,
   fillColor: string,
-) {
+): string | null {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
   const imageData = ctx.getImageData(0, 0, w, h);
@@ -2364,29 +2381,145 @@ export function floodFill(
   const tr = data[idx];
   const tg = data[idx + 1];
   const tb = data[idx + 2];
+  const ta = data[idx + 3];
 
-  if (tr === fr && tg === fg && tb === fb) return;
+  if (tr === fr && tg === fg && tb === fb && ta === 255) return null;
 
-  const tolerance = 10;
-  const match = (i: number) =>
-    Math.abs(data[i] - tr) <= tolerance &&
-    Math.abs(data[i + 1] - tg) <= tolerance &&
-    Math.abs(data[i + 2] - tb) <= tolerance;
+  const tolerance = 48;
+  const tolSq = tolerance * tolerance * 3;
+  const visited = new Uint8Array(w * h);
 
+  const match = (i: number) => {
+    const dr = data[i] - tr;
+    const dg = data[i + 1] - tg;
+    const db = data[i + 2] - tb;
+    return dr * dr + dg * dg + db * db <= tolSq;
+  };
+
+  // Scanline flood fill
   const stack = [startX, startY];
   while (stack.length > 0) {
     const y = stack.pop()!;
     const x = stack.pop()!;
-    if (x < 0 || x >= w || y < 0 || y >= h) continue;
-    const i = (y * w + x) * 4;
-    if (!match(i)) continue;
-    data[i] = fr;
-    data[i + 1] = fg;
-    data[i + 2] = fb;
-    data[i + 3] = 255;
-    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+    if (y < 0 || y >= h) continue;
+
+    const row = y * w;
+    if (visited[row + x] || !match((row + x) * 4)) continue;
+
+    let left = x;
+    while (left > 0 && !visited[row + left - 1] && match((row + left - 1) * 4))
+      left--;
+
+    let right = left;
+    let aboveAdded = false;
+    let belowAdded = false;
+
+    while (right < w && !visited[row + right] && match((row + right) * 4)) {
+      visited[row + right] = 1;
+
+      if (y > 0) {
+        const above = (y - 1) * w + right;
+        if (!visited[above] && match(above * 4)) {
+          if (!aboveAdded) {
+            stack.push(right, y - 1);
+            aboveAdded = true;
+          }
+        } else {
+          aboveAdded = false;
+        }
+      }
+
+      if (y < h - 1) {
+        const below = (y + 1) * w + right;
+        if (!visited[below] && match(below * 4)) {
+          if (!belowAdded) {
+            stack.push(right, y + 1);
+            belowAdded = true;
+          }
+        } else {
+          belowAdded = false;
+        }
+      }
+
+      right++;
+    }
   }
+
+  // Dilate by 2px to cover anti-aliased fringe
+  for (let pass = 0; pass < 2; pass++) {
+    const border: number[] = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const pi = y * w + x;
+        if (visited[pi]) continue;
+        if (
+          (x > 0 && visited[pi - 1]) ||
+          (x < w - 1 && visited[pi + 1]) ||
+          (y > 0 && visited[pi - w]) ||
+          (y < h - 1 && visited[pi + w])
+        ) {
+          border.push(x, y);
+        }
+      }
+    }
+    for (let j = 0; j < border.length; j += 2) {
+      visited[border[j + 1] * w + border[j]] = 1;
+    }
+  }
+
+  // Encode as RLE spans and paint
+  const spans: string[] = [];
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    let x = 0;
+    while (x < w) {
+      if (!visited[row + x]) {
+        x++;
+        continue;
+      }
+      const x1 = x;
+      while (x < w && visited[row + x]) x++;
+      spans.push(`${y},${x1},${x}`);
+      // Paint the span
+      for (let px = x1; px < x; px++) {
+        const i = (row + px) * 4;
+        data[i] = fr;
+        data[i + 1] = fg;
+        data[i + 2] = fb;
+        data[i + 3] = 255;
+      }
+    }
+  }
+
   ctx.putImageData(imageData, 0, 0);
+  return spans.join(';');
+}
+
+// Draw a previously captured fill region from RLE spans
+export function drawFillSpans(
+  ctx: CanvasRenderingContext2D,
+  spans: string,
+  color: string,
+  dx: number,
+  dy: number,
+  scale: number,
+) {
+  ctx.fillStyle = color;
+  // Batch all spans into a single path for performance
+  ctx.beginPath();
+  const parts = spans.split(';');
+  for (const part of parts) {
+    const [ys, x1s, x2s] = part.split(',');
+    const y = parseInt(ys);
+    const x1 = parseInt(x1s);
+    const x2 = parseInt(x2s);
+    const sx = Math.round((x1 + dx) * scale);
+    const sy = Math.round((y + dy) * scale);
+    const sw = Math.round((x2 + dx) * scale) - sx;
+    const sh = Math.max(Math.round((y + dy + 1) * scale) - sy, 1);
+    ctx.rect(sx, sy, sw, sh);
+  }
+  ctx.fill();
 }
 
 // -- Unified Event Rendering --
