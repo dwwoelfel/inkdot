@@ -10,6 +10,7 @@ import {
   ColorPickers,
   CANVAS_W,
   CANVAS_H,
+  type PresetTheme,
 } from '../components';
 import {
   useDrawingCanvas,
@@ -262,6 +263,16 @@ function PracticeCanvas() {
           } else {
             drawing.changeBgColor(color);
           }
+        }}
+        onThemeChange={(theme: PresetTheme) => {
+          drawing.saveSettings({
+            penColors: theme.penColors,
+            bgColors: theme.bgColors,
+            lastPenColor: theme.penColors[0],
+            lastBgColor: theme.bgColors[0],
+          });
+          drawing.changePenColor(theme.penColors[0]);
+          drawing.changeBgColor(theme.bgColors[0]);
         }}
       />
     </div>

@@ -24,6 +24,7 @@ import {
   formatTime,
   renderEventsToCanvas,
   processEventIncremental,
+  type PresetTheme,
 } from '../components';
 import {
   useDrawingCanvas,
@@ -743,6 +744,16 @@ function DrawCanvas({
           drawing.saveSettings(
             type === 'pen' ? { penColors: current } : { bgColors: current },
           );
+        }}
+        onThemeChange={(theme: PresetTheme) => {
+          drawing.saveSettings({
+            penColors: theme.penColors,
+            bgColors: theme.bgColors,
+            lastPenColor: theme.penColors[0],
+            lastBgColor: theme.bgColors[0],
+          });
+          drawing.changePenColor(theme.penColors[0]);
+          drawing.changeBgColor(theme.bgColors[0]);
         }}
       />
     </div>

@@ -243,6 +243,186 @@ export const BG_COLORS = [
 ];
 
 export const DEFAULT_BG = '#ffffff';
+
+// --- Preset Themes ---
+
+export interface PresetTheme {
+  id: string;
+  name: string;
+  penColors: string[];
+  bgColors: string[];
+}
+
+export const PRESET_THEMES: PresetTheme[] = [
+  {
+    id: 'classic',
+    name: 'Classic',
+    penColors: PEN_COLORS,
+    bgColors: BG_COLORS,
+  },
+  {
+    // Sources: Nord Theme (Arctic Ice Studio), Solarized (Ethan Schoonover)
+    id: 'nord',
+    name: 'Nord',
+    penColors: [
+      '#2e3440',
+      '#bf616a',
+      '#d08770',
+      '#ebcb8b',
+      '#a3be8c',
+      '#b48ead',
+      '#5e81ac',
+      '#88c0d0',
+      '#8fbcbb',
+    ],
+    bgColors: [
+      '#eceff4',
+      '#e5e9f0',
+      '#d8dee9',
+      '#fdf6e3',
+      '#eee8d5',
+      '#93a1a1',
+      '#4c566a',
+      '#434c5e',
+      '#2e3440',
+    ],
+  },
+  {
+    // Source: Catppuccin Mocha, Oil 6 (Brullov)
+    id: 'mocha',
+    name: 'Mocha',
+    penColors: [
+      '#f5e0dc',
+      '#f38ba8',
+      '#fab387',
+      '#f9e2af',
+      '#a6e3a1',
+      '#89dceb',
+      '#89b4fa',
+      '#cba6f7',
+      '#cdd6f4',
+    ],
+    bgColors: [
+      '#1e1e2e',
+      '#181825',
+      '#11111b',
+      '#313244',
+      '#45475a',
+      '#585b70',
+      '#272744',
+      '#494d7e',
+      '#6c7086',
+    ],
+  },
+  {
+    // Source: Japanese Woodblock (Polyducks), Nyx8 (Javier Guerrero)
+    id: 'woodblock',
+    name: 'Woodblock',
+    penColors: [
+      '#2b2821',
+      '#624c3c',
+      '#b03a48',
+      '#d4804d',
+      '#e0c872',
+      '#3e6958',
+      '#243d5c',
+      '#5c8b93',
+      '#997577',
+    ],
+    bgColors: [
+      '#e3cfb4',
+      '#d9ac8b',
+      '#f6d6bd',
+      '#ffecd6',
+      '#ffd4a3',
+      '#b1a58d',
+      '#5d7275',
+      '#0f2a3f',
+      '#08141e',
+    ],
+  },
+  {
+    // Sources: Sweetie-16 (GrafxKid), ENDESGA 32, Ice Cream GB (Kerrie Lake)
+    id: 'sunrise',
+    name: 'Sunrise',
+    penColors: [
+      '#1a1c2c',
+      '#b13e53',
+      '#ef7d57',
+      '#e43b44',
+      '#f77622',
+      '#feae34',
+      '#3b5dc9',
+      '#38b764',
+      '#5d275d',
+    ],
+    bgColors: [
+      '#fff6d3',
+      '#ffcd75',
+      '#ead4aa',
+      '#e8b796',
+      '#f4f4f4',
+      '#94b0c2',
+      '#566c86',
+      '#333c57',
+      '#1a1c2c',
+    ],
+  },
+  {
+    // Source: Island Joy 16 (Kerrie Lake)
+    id: 'island',
+    name: 'Island',
+    penColors: [
+      '#393457',
+      '#6a3771',
+      '#c92464',
+      '#cb4d68',
+      '#f99252',
+      '#f7e476',
+      '#5bb361',
+      '#1e8875',
+      '#11adc1',
+    ],
+    bgColors: [
+      '#ffffff',
+      '#f0f6e8',
+      '#6df7c1',
+      '#f48cb6',
+      '#f7b69e',
+      '#93d4b5',
+      '#9b9c82',
+      '#606c81',
+      '#393457',
+    ],
+  },
+  {
+    // Sources: Resurrect 64 (Kerrie Lake), Apollo (AdamCYounis)
+    id: 'dusk',
+    name: 'Dusk',
+    penColors: [
+      '#2e222f',
+      '#ea4f36',
+      '#f9c22b',
+      '#1ebc73',
+      '#4d9be6',
+      '#905ea9',
+      '#cf657f',
+      '#f57d4a',
+      '#ffffff',
+    ],
+    bgColors: [
+      '#ebede9',
+      '#c7cfcc',
+      '#c7dcd0',
+      '#9babb2',
+      '#819796',
+      '#394a50',
+      '#202e37',
+      '#151d28',
+      '#090a14',
+    ],
+  },
+];
 export const TEMPLATES = [
   {
     id: 'this-is-fine',
@@ -3560,6 +3740,80 @@ function PaletteRowDesktop({
   );
 }
 
+function ThemePreview({
+  theme,
+  isActive,
+  onClick,
+}: {
+  theme: PresetTheme;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  // Show 5 representative colors: 3 pen + 2 bg
+  const stripes = [
+    theme.penColors[0],
+    theme.penColors[3],
+    theme.penColors[6],
+    theme.bgColors[0],
+    theme.bgColors[4],
+  ];
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex shrink-0 cursor-pointer flex-col items-center gap-1 transition-transform hover:scale-105 ${isActive ? 'scale-105' : ''}`}
+    >
+      <div
+        className={`flex h-7 w-10 overflow-hidden rounded-md border sm:h-6 sm:w-9 ${isActive ? 'border-accent ring-accent/30 ring-2' : 'border-border group-hover:border-border-strong'}`}
+      >
+        {stripes.map((c, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+        ))}
+      </div>
+      <span
+        className={`text-[9px] leading-none ${isActive ? 'text-accent font-medium' : 'text-text-tertiary'}`}
+      >
+        {theme.name}
+      </span>
+    </button>
+  );
+}
+
+function ThemeSelector({
+  penPalette,
+  bgPalette,
+  onThemeChange,
+}: {
+  penPalette: string[];
+  bgPalette: string[];
+  onThemeChange: (theme: PresetTheme) => void;
+}) {
+  const activeTheme = PRESET_THEMES.find(
+    (t) =>
+      t.penColors.length === penPalette.length &&
+      t.bgColors.length === bgPalette.length &&
+      t.penColors.every((c, i) => c === penPalette[i]) &&
+      t.bgColors.every((c, i) => c === bgPalette[i]),
+  );
+
+  return (
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className="text-text-tertiary hidden text-xs tracking-wide uppercase sm:block">
+        Theme
+      </span>
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {PRESET_THEMES.map((theme) => (
+          <ThemePreview
+            key={theme.id}
+            theme={theme}
+            isActive={activeTheme?.id === theme.id}
+            onClick={() => onThemeChange(theme)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ColorPickers({
   penPalette,
   bgPalette,
@@ -3568,6 +3822,7 @@ export function ColorPickers({
   onPenColorChange,
   onBgColorChange,
   onPaletteChange,
+  onThemeChange,
 }: {
   penPalette: string[];
   bgPalette: string[];
@@ -3576,9 +3831,19 @@ export function ColorPickers({
   onPenColorChange: (c: string) => void;
   onBgColorChange: (c: string) => void;
   onPaletteChange?: (type: 'pen' | 'bg', index: number, color: string) => void;
+  onThemeChange?: (theme: PresetTheme) => void;
 }) {
   return (
     <>
+      {onThemeChange && (
+        <div className="flex justify-center px-2 sm:px-0">
+          <ThemeSelector
+            penPalette={penPalette}
+            bgPalette={bgPalette}
+            onThemeChange={onThemeChange}
+          />
+        </div>
+      )}
       {/* Mobile */}
       <div className="flex w-full flex-col items-center gap-4 sm:hidden">
         <PaletteRowMobile
