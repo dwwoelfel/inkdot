@@ -14,7 +14,7 @@ export default function AboutPage() {
 
         <div className="space-y-6 sm:space-y-8">
           <section className="space-y-2">
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               Inkdot is a real-time collaborative drawing app. Draw a sketch,
               and every brushstroke is streamed live for others to watch.
             </p>
@@ -24,7 +24,7 @@ export default function AboutPage() {
             <h2 className="text-text-primary text-base font-semibold sm:text-lg">
               Built with
             </h2>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               Inkdot is powered by{' '}
               <a
                 href="https://instantdb.com"
@@ -48,11 +48,11 @@ export default function AboutPage() {
               the player subscribes to the stream and replays the events to
               generate shapes.
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               Streams never expire, so you can read the stream it is done to
               replay sketches.
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               They were built to stream llm-generated responses to clients.
               There are a few examples of a{' '}
               <a
@@ -93,22 +93,22 @@ export default function AboutPage() {
               How Streams Work
             </h2>
             <StreamsDiagram />
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               The writer pushes data over a websocket and it is immediately
               distributed to every listener of the stream through the
               listener&apos;s websocket or sse connections.
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               As the stream grows, writes are flushed to Storage (backed by S3).
               When a new client connects, it fetches the chunks from S3 and
               subscribes to new writes. The new writes are delivered directly
               from the server.
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               When the writer is finished, all writes are flushed to Storage and
               the stream is marked as done.
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed sm:text-base">
+            <p className="text-text-primary text-sm leading-relaxed sm:text-base">
               This approach has very low overhead for delivering fresh writes,
               but allows the streams to grow beyond what could safely fit in
               memory.
