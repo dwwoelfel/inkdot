@@ -1348,6 +1348,10 @@ export function LiveThumbnail({
       color: '',
       size: 4,
       shapeStart: null,
+      lastX: 0,
+      lastY: 0,
+      lastMidX: 0,
+      lastMidY: 0,
     };
     let snapshotBuffer: StrokeEvent[] | null = null;
 
@@ -1634,6 +1638,10 @@ export function ReplayThumbnail({
       color: '',
       size: 4,
       shapeStart: null,
+      lastX: 0,
+      lastY: 0,
+      lastMidX: 0,
+      lastMidY: 0,
     };
     let eventIdx = 0;
 
@@ -2665,6 +2673,11 @@ export type IncrementalState = {
   color: string;
   size: number;
   shapeStart: { x: number; y: number } | null;
+  // Per-instance bezier smoothing state (avoids shared module globals)
+  lastX: number;
+  lastY: number;
+  lastMidX: number;
+  lastMidY: number;
 };
 
 export type IncrementalResult = {
@@ -2820,10 +2833,22 @@ export function processEventIncremental(
     state.shapeStart = null;
   }
 
-  // Draw the event with current offsets
+  // Restore per-instance draw state before drawing, then save it back.
+  // This avoids corruption from shared module-level globals when multiple
+  // canvases (e.g. live thumbnails) process events concurrently.
+  lastX = state.lastX;
+  lastY = state.lastY;
+  lastMidX = state.lastMidX;
+  lastMidY = state.lastMidY;
+
   const offsets = buildOffsets(allEvents);
   const deleted = buildDeletedSet(allEvents);
   drawEvent(ctx, evt, 1, offsets, deleted);
+
+  state.lastX = lastX;
+  state.lastY = lastY;
+  state.lastMidX = lastMidX;
+  state.lastMidY = lastMidY;
 
   // For shape events, cursor goes to x2/y2 (end point, not start)
   const cursorX = evt.type === 'shape' && evt.x2 != null ? evt.x2 : evt.x;

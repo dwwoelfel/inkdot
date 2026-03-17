@@ -857,6 +857,10 @@ function TrimPhase({
       color: '',
       size: 4,
       shapeStart: null,
+      lastX: 0,
+      lastY: 0,
+      lastMidX: 0,
+      lastMidY: 0,
     };
 
     const frame = () => {
@@ -945,6 +949,10 @@ function TrimPhase({
           replayState.color = '';
           replayState.size = 4;
           replayState.shapeStart = null;
+          replayState.lastX = 0;
+          replayState.lastY = 0;
+          replayState.lastMidX = 0;
+          replayState.lastMidY = 0;
           setScrubValue(0);
           animRef.current = requestAnimationFrame(frame);
           return;

@@ -724,6 +724,10 @@ function ReplayCanvas({
       color: '',
       size: 4,
       shapeStart: null,
+      lastX: 0,
+      lastY: 0,
+      lastMidX: 0,
+      lastMidY: 0,
     };
 
     let firstEventReceived = false;
@@ -868,6 +872,10 @@ function ReplayCanvas({
       color: '',
       size: 4,
       shapeStart: null,
+      lastX: 0,
+      lastY: 0,
+      lastMidX: 0,
+      lastMidY: 0,
     };
 
     const frame = () => {
