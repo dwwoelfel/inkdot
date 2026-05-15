@@ -13,11 +13,14 @@
     "push": "instant-cli push --env .env",
     "pull": "instant-cli pull --env .env",
     "push:dev": "instant-cli push --env .env.development",
-    "pull:dev": "instant-cli pull --env .env.development"
+    "pull:dev": "instant-cli pull --env .env.development",
+    "webhook:add": "instant-cli webhook add --env .env --namespaces sketches --actions create",
+    "webhook:add:dev": "instant-cli webhook add --env .env.development --namespaces sketches --actions create"
   },
   "dependencies": {
-    "@instantdb/admin": "latest",
-    "@instantdb/react": "latest",
+    "@google/generative-ai": "^0.24.1",
+    "@instantdb/admin": "^1.0.34",
+    "@instantdb/react": "^1.0.34",
     "motion": "^12.36.0",
     "next": "16.1.6",
     "react": "19.2.4",
@@ -30,7 +33,7 @@
     "@types/react-dom": "19.2.3",
     "eslint": "^9.39.3",
     "eslint-config-next": "16.1.6",
-    "instant-cli": "^0.22.155",
+    "instant-cli": "^1.0.34",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.2.1",
